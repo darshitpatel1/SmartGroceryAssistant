@@ -1,0 +1,96 @@
+You are a Replit AI agent.  
+Scaffold a project named **“in-page-browser”**.
+
+────────────────────────
+1 Workspace layout
+────────────────────────
+/server     → Node + TypeScript (Express, socket.io, Puppeteer)
+/client     → React + TypeScript (Vite)
+/package.json (root) with Yarn workspaces
+
+────────────────────────
+2 Server (/server)
+────────────────────────
+• Dev deps: ts-node-dev, typescript, @types/node
+• Deps: express cors socket.io puppeteer
+• src/index.ts
+  ─ import express, http, socket.io, puppeteer
+  ─ const PORT = process.env.PORT || 4000
+  ─ Create Express app (CORS “*”), httpServer, io = new Server(httpServer)
+  ─ io.on("connection", socket => {
+        let browser, page, cdp;
+        socket.on("browse", async ({ url }) => {
+            browser = await puppeteer.launch({ headless: true });
+            page = await browser.newPage();
+            await page.setViewport({ width:1280, height:720 });
+            await page.goto(url, { waitUntil:"domcontentloaded" });
+            cdp = await page.target().createCDPSession();
+            await cdp.send("Page.enable");
+            await cdp.send("Page.startScreencast", { format:"jpeg", quality:50 });
+            cdp.on("Page.screencastFrame", async ({ data, sessionId }) => {
+               socket.emit("frame", data);
+               await cdp.send("Page.screencastFrameAck", { sessionId });
+            });
+        });
+        socket.on("click", async ({ xNorm, yNorm }) => {
+            if(!page) return;
+            const {width,height} = page.viewport();
+            await page.mouse.click(xNorm*width, yNorm*height);
+        });
+        socket.on("type", async ({ text }) => {
+            if(page) await page.keyboard.type(text);
+        });
+        socket.on("disconnect", async () => {
+            if(browser) await browser.close();
+        });
+    });
+  ─ httpServer.listen(PORT, … console.log)
+
+• tsconfig.json → target es2020, module commonjs, rootDir src, outDir dist
+• npm scripts:
+    "dev": "ts-node-dev --respawn src/index.ts"
+    "start": "node dist/index.js"
+
+────────────────────────
+3 Client (/client)
+────────────────────────
+• Create via `npm create vite@latest client --template react-ts`
+• Deps: socket.io-client styled-components
+• src/App.tsx
+  ─ import { io } from "socket.io-client";
+  ─ const socket = io("http://localhost:4000");
+  ─ state: url, frame (base-64), scale (fit)
+  ─ form → socket.emit("browse",{url})
+  ─ <img src={`data:image/jpeg;base64,${frame}`} ... onClick={e=>{
+        const rect=e.currentTarget.getBoundingClientRect();
+        const xNorm=(e.clientX-rect.left)/rect.width;
+        const yNorm=(e.clientY-rect.top)/rect.height;
+        socket.emit("click",{xNorm,yNorm});
+    }}/>
+  ─ simple <textarea onKeyDown={e=>{
+        if(e.key==="Enter"){ socket.emit("type",{text:e.currentTarget.value+"\n"}); e.currentTarget.value=""; }
+    }}/>
+
+• viteEnv.d.ts for vite env hints.
+
+────────────────────────
+4 Root scripts & README
+────────────────────────
+• Root `package.json` scripts:
+    "dev": "concurrently \"yarn workspace server dev\" \"yarn workspace client dev\""
+• README.md:
+    ```bash
+    # install
+    yarn
+    # run dev (both client & server)
+    yarn dev
+    # visit
+    http://localhost:5173
+    # enter any URL (e.g. https://example.com) and interact
+    ```
+• .gitignore → node_modules, */dist, puppeteer/.local-chromium
+
+────────────────────────
+5 Done
+────────────────────────
+Generate all source files & configs exactly as described.
