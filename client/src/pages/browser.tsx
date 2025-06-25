@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import { useSocket } from '@/hooks/use-socket';
-import { BrowserViewport } from '@/components/browser-viewport';
-import { ControlsSidebar } from '@/components/controls-sidebar';
 
 export default function Browser() {
   const [url, setUrl] = useState('');
@@ -14,106 +12,85 @@ export default function Browser() {
     }
   };
 
-  const handleViewportClick = (xNorm: number, yNorm: number) => {
+  const handleViewportClick = (e: React.MouseEvent<HTMLImageElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const xNorm = (e.clientX - rect.left) / rect.width;
+    const yNorm = (e.clientY - rect.top) / rect.height;
     click(xNorm, yNorm);
   };
 
-  const handleTypeText = (text: string) => {
-    type(text);
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      const target = e.target as HTMLTextAreaElement;
+      if (target.value.trim()) {
+        type(target.value + '\n');
+        target.value = '';
+      }
+    }
   };
 
   return (
-    <div className="flex flex-col h-screen bg-browser-bg text-browser-text font-sans">
-      {/* Header */}
-      <header className="bg-browser-surface border-b border-browser-border">
-        <div className="flex items-center h-14 px-4 gap-4">
-          {/* Window Controls */}
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-red-500"></div>
-            <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-            <div className="w-3 h-3 rounded-full bg-green-500"></div>
-          </div>
+    <div className="h-screen flex flex-col bg-gray-900 text-white">
+      {/* URL Bar */}
+      <div className="p-4 bg-gray-800 border-b border-gray-700">
+        <form onSubmit={handleBrowse} className="flex gap-2">
+          <input
+            type="url"
+            placeholder="Enter URL (e.g., https://google.com)"
+            className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+          />
+          <button
+            type="submit"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white font-medium"
+          >
+            Go
+          </button>
+        </form>
+        <div className="mt-2 text-sm">
+          Status: <span className={connected ? 'text-green-400' : 'text-red-400'}>
+            {connected ? 'Connected' : 'Disconnected'}
+          </span>
+        </div>
+      </div>
 
-          {/* Navigation Controls */}
-          <div className="flex items-center gap-2">
-            <button className="p-2 hover:bg-browser-border rounded transition-colors">
-              <i className="fas fa-arrow-left text-browser-text-secondary"></i>
-            </button>
-            <button className="p-2 hover:bg-browser-border rounded transition-colors">
-              <i className="fas fa-arrow-right text-browser-text-secondary"></i>
-            </button>
-            <button className="p-2 hover:bg-browser-border rounded transition-colors">
-              <i className="fas fa-redo text-browser-text-secondary"></i>
-            </button>
-          </div>
-
-          {/* URL Bar */}
-          <div className="flex-1 max-w-2xl">
-            <form className="relative" onSubmit={handleBrowse}>
-              <input
-                type="url"
-                placeholder="Enter URL (e.g., https://example.com)"
-                className="w-full px-4 py-2 bg-browser-bg border border-browser-border rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-browser-primary focus:border-transparent transition-all"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
+      {/* Browser Display */}
+      <div className="flex-1 flex">
+        {/* Main Viewport */}
+        <div className="flex-1 p-4">
+          <div className="w-full h-full bg-gray-800 rounded border border-gray-700 overflow-hidden">
+            {frame ? (
+              <img
+                src={`data:image/jpeg;base64,${frame}`}
+                alt="Browser"
+                className="w-full h-full object-contain cursor-crosshair"
+                onClick={handleViewportClick}
               />
-              <button
-                type="submit"
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 px-3 py-1 bg-browser-primary hover:bg-blue-700 rounded text-sm font-medium transition-colors"
-              >
-                Go
-              </button>
-            </form>
-          </div>
-
-          {/* Connection Status */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${connected ? 'bg-browser-success connection-pulse' : 'bg-browser-error'}`}></div>
-              <span className={`text-sm font-medium ${connected ? 'text-browser-success' : 'text-browser-error'}`}>
-                {connected ? 'Connected' : 'Disconnected'}
-              </span>
-            </div>
-            <button className="p-2 hover:bg-browser-border rounded transition-colors" title="Settings">
-              <i className="fas fa-cog text-browser-text-secondary"></i>
-            </button>
+            ) : (
+              <div className="h-full flex items-center justify-center text-gray-400">
+                {connected ? 'Enter a URL to start browsing' : 'Connecting...'}
+              </div>
+            )}
           </div>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="flex-1 flex overflow-hidden">
-        <BrowserViewport
-          frame={frame}
-          connected={connected}
-          onViewportClick={handleViewportClick}
-        />
-        <ControlsSidebar
-          connected={connected}
-          onTypeText={handleTypeText}
-        />
-      </main>
-
-      {/* Status Bar */}
-      <footer className="bg-browser-surface border-t border-browser-border px-4 py-2">
-        <div className="flex items-center justify-between text-sm">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <i className="fas fa-server text-browser-primary"></i>
-              <span>Server: {window.location.host}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <i className="fas fa-desktop text-browser-text-secondary"></i>
-              <span>Client: {navigator.userAgent.split(' ').slice(-2).join(' ')}</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4 text-browser-text-secondary">
-            <span>Status: {connected ? 'Active' : 'Inactive'}</span>
-            <span>Mode: Remote Browser</span>
-          </div>
+        {/* Text Input Panel */}
+        <div className="w-80 p-4 bg-gray-800 border-l border-gray-700">
+          <h3 className="text-lg font-semibold mb-3">Type Text</h3>
+          <textarea
+            rows={6}
+            placeholder="Type here and press Enter to send to browser"
+            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onKeyDown={handleKeyDown}
+            disabled={!connected}
+          />
+          <p className="mt-2 text-sm text-gray-400">
+            Press Enter to send text to the browser
+          </p>
         </div>
-      </footer>
+      </div>
     </div>
   );
 }
