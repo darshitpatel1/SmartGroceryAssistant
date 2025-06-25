@@ -102,6 +102,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    socket.on("scroll", async ({ deltaY }: { deltaY: number }) => {
+      if (!page) return;
+      
+      try {
+        await page.mouse.wheel({ deltaY });
+        console.log("Scrolled:", deltaY);
+      } catch (error) {
+        console.error("Scroll error:", error);
+      }
+    });
+
+    socket.on("key", async ({ key, modifiers }: { key: string; modifiers?: string[] }) => {
+      if (!page) return;
+      
+      try {
+        // Handle modifier keys
+        const options: any = {};
+        if (modifiers?.includes('ctrl')) options.ctrl = true;
+        if (modifiers?.includes('shift')) options.shift = true;
+        if (modifiers?.includes('alt')) options.alt = true;
+        if (modifiers?.includes('meta')) options.meta = true;
+
+        await page.keyboard.press(key as any, options);
+        console.log("Key pressed:", key, modifiers);
+      } catch (error) {
+        console.error("Key press error:", error);
+      }
+    });
+
+    socket.on("zoom", async ({ level }: { level: number }) => {
+      if (!page) return;
+      
+      try {
+        await page.evaluate((zoomLevel) => {
+          document.body.style.zoom = zoomLevel.toString();
+        }, level);
+        console.log("Zoom set to:", level);
+      } catch (error) {
+        console.error("Zoom error:", error);
+      }
+    });
+
     socket.on("disconnect", async () => {
       console.log("Client disconnected:", socket.id);
       if (browser) {

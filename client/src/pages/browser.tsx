@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSocket } from '@/hooks/use-socket';
 
 export default function Browser() {
   const [url, setUrl] = useState('');
-  const { connected, frame, browse, click, type } = useSocket();
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const { connected, frame, browse, click, type, scroll, pressKey, zoom } = useSocket();
+  const viewportRef = useRef<HTMLDivElement>(null);
 
   const handleBrowse = (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,6 +31,67 @@ export default function Browser() {
       }
     }
   };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    scroll(e.deltaY);
+  };
+
+  const handleZoomChange = (newZoom: number) => {
+    setZoomLevel(newZoom);
+    zoom(newZoom);
+  };
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (!connected) return;
+
+      const modifiers: string[] = [];
+      if (e.ctrlKey) modifiers.push('ctrl');
+      if (e.shiftKey) modifiers.push('shift');
+      if (e.altKey) modifiers.push('alt');
+      if (e.metaKey) modifiers.push('meta');
+
+      // Common browser shortcuts
+      if (e.ctrlKey && e.key === 'r') {
+        e.preventDefault();
+        pressKey('F5');
+      } else if (e.ctrlKey && e.key === 'l') {
+        e.preventDefault();
+(document.querySelector('input[type="url"]') as HTMLInputElement)?.focus();
+      } else if (e.key === 'F5') {
+        e.preventDefault();
+        pressKey('F5');
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        pressKey('Escape');
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        pressKey('Tab', modifiers);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        pressKey('Enter', modifiers);
+      } else if (e.key === 'Backspace') {
+        e.preventDefault();
+        pressKey('Backspace', modifiers);
+      } else if (e.key === 'Delete') {
+        e.preventDefault();
+        pressKey('Delete', modifiers);
+      } else if (e.key.length === 1) {
+        // Single character keys
+        e.preventDefault();
+        if (modifiers.length > 0) {
+          pressKey(e.key, modifiers);
+        } else {
+          type(e.key);
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleGlobalKeyDown);
+    return () => document.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [connected, pressKey, type]);
 
   return (
     <div className="h-screen flex flex-col bg-gray-900 text-white">
@@ -60,17 +123,61 @@ export default function Browser() {
       <div className="flex-1 flex">
         {/* Main Viewport */}
         <div className="flex-1 p-4">
-          <div className="w-full h-full bg-gray-800 rounded border border-gray-700 overflow-hidden">
+          <div className="w-full h-full bg-gray-800 rounded border border-gray-700 overflow-hidden relative">
             {frame ? (
-              <img
-                src={`data:image/jpeg;base64,${frame}`}
-                alt="Browser"
-                className="w-full h-full object-contain cursor-crosshair"
-                onClick={handleViewportClick}
-              />
+              <div 
+                ref={viewportRef}
+                className="w-full h-full"
+                onWheel={handleWheel}
+                tabIndex={0}
+              >
+                <img
+                  src={`data:image/jpeg;base64,${frame}`}
+                  alt="Browser"
+                  className="w-full h-full object-contain cursor-crosshair"
+                  onClick={handleViewportClick}
+                  draggable={false}
+                />
+              </div>
             ) : (
               <div className="h-full flex items-center justify-center text-gray-400">
                 {connected ? 'Enter a URL to start browsing' : 'Connecting...'}
+              </div>
+            )}
+            
+            {/* Zoom Controls */}
+            {frame && (
+              <div className="absolute top-4 right-4 flex gap-2 bg-black bg-opacity-70 rounded p-2">
+                <button
+                  onClick={() => handleZoomChange(0.5)}
+                  className="px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded text-xs text-white"
+                >
+                  50%
+                </button>
+                <button
+                  onClick={() => handleZoomChange(0.75)}
+                  className="px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded text-xs text-white"
+                >
+                  75%
+                </button>
+                <button
+                  onClick={() => handleZoomChange(1)}
+                  className="px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded text-xs text-white"
+                >
+                  100%
+                </button>
+                <button
+                  onClick={() => handleZoomChange(1.25)}
+                  className="px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded text-xs text-white"
+                >
+                  125%
+                </button>
+                <button
+                  onClick={() => handleZoomChange(1.5)}
+                  className="px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded text-xs text-white"
+                >
+                  150%
+                </button>
               </div>
             )}
           </div>

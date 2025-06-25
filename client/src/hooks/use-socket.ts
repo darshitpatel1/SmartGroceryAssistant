@@ -8,6 +8,9 @@ interface UseSocketReturn {
   browse: (url: string) => void;
   click: (xNorm: number, yNorm: number) => void;
   type: (text: string) => void;
+  scroll: (deltaY: number) => void;
+  pressKey: (key: string, modifiers?: string[]) => void;
+  zoom: (level: number) => void;
 }
 
 export function useSocket(): UseSocketReturn {
@@ -69,6 +72,24 @@ export function useSocket(): UseSocketReturn {
     }
   };
 
+  const scroll = (deltaY: number) => {
+    if (socketRef.current) {
+      socketRef.current.emit('scroll', { deltaY });
+    }
+  };
+
+  const pressKey = (key: string, modifiers?: string[]) => {
+    if (socketRef.current) {
+      socketRef.current.emit('key', { key, modifiers });
+    }
+  };
+
+  const zoom = (level: number) => {
+    if (socketRef.current) {
+      socketRef.current.emit('zoom', { level });
+    }
+  };
+
   return {
     socket: socketRef.current,
     connected,
@@ -76,5 +97,8 @@ export function useSocket(): UseSocketReturn {
     browse,
     click,
     type,
+    scroll,
+    pressKey,
+    zoom,
   };
 }
