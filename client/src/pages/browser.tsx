@@ -59,7 +59,8 @@ export default function Browser() {
         pressKey('F5');
       } else if (e.ctrlKey && e.key === 'l') {
         e.preventDefault();
-(document.querySelector('input[type="url"]') as HTMLInputElement)?.focus();
+        const urlInput = document.querySelector('input[type="url"]') as HTMLInputElement;
+        urlInput?.focus();
       } else if (e.key === 'F5') {
         e.preventDefault();
         pressKey('F5');
@@ -183,19 +184,82 @@ export default function Browser() {
           </div>
         </div>
 
-        {/* Text Input Panel */}
-        <div className="w-80 p-4 bg-gray-800 border-l border-gray-700">
-          <h3 className="text-lg font-semibold mb-3">Type Text</h3>
-          <textarea
-            rows={6}
-            placeholder="Type here and press Enter to send to browser"
-            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-            onKeyDown={handleKeyDown}
-            disabled={!connected}
-          />
-          <p className="mt-2 text-sm text-gray-400">
-            Press Enter to send text to the browser
-          </p>
+        {/* Controls Panel */}
+        <div className="w-80 p-4 bg-gray-800 border-l border-gray-700 flex flex-col gap-4">
+          {/* Text Input */}
+          <div>
+            <h3 className="text-lg font-semibold mb-3">Type Text</h3>
+            <textarea
+              rows={4}
+              placeholder="Type here and press Enter to send to browser"
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onKeyDown={handleKeyDown}
+              disabled={!connected}
+            />
+            <p className="mt-2 text-sm text-gray-400">
+              Press Enter to send text to the browser
+            </p>
+          </div>
+
+          {/* Keyboard Shortcuts */}
+          <div>
+            <h3 className="text-lg font-semibold mb-3">Keyboard Shortcuts</h3>
+            <div className="space-y-2 text-sm text-gray-300">
+              <div className="flex justify-between">
+                <span>Refresh page:</span>
+                <span className="text-gray-400">Ctrl+R or F5</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Focus URL bar:</span>
+                <span className="text-gray-400">Ctrl+L</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Navigate:</span>
+                <span className="text-gray-400">Tab / Shift+Tab</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Submit:</span>
+                <span className="text-gray-400">Enter</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Escape:</span>
+                <span className="text-gray-400">Esc</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Browser Info */}
+          <div>
+            <h3 className="text-lg font-semibold mb-3">Browser Info</h3>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-400">Zoom:</span>
+                <span className="text-white">{Math.round(zoomLevel * 100)}%</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Viewport:</span>
+                <span className="text-white">1280x720</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Status:</span>
+                <span className={connected ? 'text-green-400' : 'text-red-400'}>
+                  {connected ? 'Connected' : 'Disconnected'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Instructions */}
+          <div>
+            <h3 className="text-lg font-semibold mb-3">How to Use</h3>
+            <div className="text-sm text-gray-400 space-y-2">
+              <p>• Enter URL and press Go</p>
+              <p>• Click anywhere to interact</p>
+              <p>• Scroll with mouse wheel</p>
+              <p>• Use keyboard shortcuts</p>
+              <p>• Adjust zoom with buttons</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
