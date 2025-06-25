@@ -1,0 +1,167 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(0, 0%, 100%);
+  --foreground: hsl(20, 14.3%, 4.1%);
+  --muted: hsl(60, 4.8%, 95.9%);
+  --muted-foreground: hsl(25, 5.3%, 44.7%);
+  --popover: hsl(0, 0%, 100%);
+  --popover-foreground: hsl(20, 14.3%, 4.1%);
+  --card: hsl(0, 0%, 100%);
+  --card-foreground: hsl(20, 14.3%, 4.1%);
+  --border: hsl(20, 5.9%, 90%);
+  --input: hsl(20, 5.9%, 90%);
+  --primary: hsl(207, 90%, 54%);
+  --primary-foreground: hsl(211, 100%, 99%);
+  --secondary: hsl(60, 4.8%, 95.9%);
+  --secondary-foreground: hsl(24, 9.8%, 10%);
+  --accent: hsl(60, 4.8%, 95.9%);
+  --accent-foreground: hsl(24, 9.8%, 10%);
+  --destructive: hsl(0, 84.2%, 60.2%);
+  --destructive-foreground: hsl(60, 9.1%, 97.8%);
+  --ring: hsl(20, 14.3%, 4.1%);
+  --radius: 0.5rem;
+  
+  /* Browser theme colors */
+  --browser-bg: hsl(210, 24%, 16%);
+  --browser-surface: hsl(210, 24%, 22%);
+  --browser-border: hsl(210, 18%, 30%);
+  --browser-text: hsl(60, 9%, 98%);
+  --browser-text-secondary: hsl(210, 16%, 82%);
+  --browser-primary: hsl(207, 90%, 54%);
+  --browser-success: hsl(159, 100%, 44%);
+  --browser-warning: hsl(38, 92%, 50%);
+  --browser-error: hsl(0, 84%, 60%);
+}
+
+.dark {
+  --background: hsl(240, 10%, 3.9%);
+  --foreground: hsl(0, 0%, 98%);
+  --muted: hsl(240, 3.7%, 15.9%);
+  --muted-foreground: hsl(240, 5%, 64.9%);
+  --popover: hsl(240, 10%, 3.9%);
+  --popover-foreground: hsl(0, 0%, 98%);
+  --card: hsl(240, 10%, 3.9%);
+  --card-foreground: hsl(0, 0%, 98%);
+  --border: hsl(240, 3.7%, 15.9%);
+  --input: hsl(240, 3.7%, 15.9%);
+  --primary: hsl(207, 90%, 54%);
+  --primary-foreground: hsl(211, 100%, 99%);
+  --secondary: hsl(240, 3.7%, 15.9%);
+  --secondary-foreground: hsl(0, 0%, 98%);
+  --accent: hsl(240, 3.7%, 15.9%);
+  --accent-foreground: hsl(0, 0%, 98%);
+  --destructive: hsl(0, 62.8%, 30.6%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --ring: hsl(240, 4.9%, 83.9%);
+  --radius: 0.5rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .browser-viewport {
+    background: repeating-conic-gradient(var(--browser-surface) 0% 25%, var(--browser-bg) 0% 50%) 50% / 20px 20px;
+  }
+  
+  .connection-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  .browser-frame {
+    box-shadow: 0 0 0 1px var(--browser-border), 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  }
+  
+  .bg-browser-bg {
+    background-color: var(--browser-bg);
+  }
+  
+  .bg-browser-surface {
+    background-color: var(--browser-surface);
+  }
+  
+  .border-browser-border {
+    border-color: var(--browser-border);
+  }
+  
+  .text-browser-text {
+    color: var(--browser-text);
+  }
+  
+  .text-browser-text-secondary {
+    color: var(--browser-text-secondary);
+  }
+  
+  .bg-browser-primary {
+    background-color: var(--browser-primary);
+  }
+  
+  .text-browser-primary {
+    color: var(--browser-primary);
+  }
+  
+  .text-browser-success {
+    color: var(--browser-success);
+  }
+  
+  .bg-browser-success {
+    background-color: var(--browser-success);
+  }
+  
+  .text-browser-warning {
+    color: var(--browser-warning);
+  }
+  
+  .bg-browser-warning {
+    background-color: var(--browser-warning);
+  }
+  
+  .text-browser-error {
+    color: var(--browser-error);
+  }
+  
+  .bg-browser-error {
+    background-color: var(--browser-error);
+  }
+  
+  .bg-browser-border {
+    background-color: var(--browser-border);
+  }
+  
+  .hover\:bg-browser-border:hover {
+    background-color: var(--browser-border);
+  }
+  
+  .hover\:bg-browser-text-secondary:hover {
+    background-color: var(--browser-text-secondary);
+  }
+  
+  .hover\:text-browser-bg:hover {
+    color: var(--browser-bg);
+  }
+  
+  .focus\:ring-browser-primary:focus {
+    --tw-ring-color: var(--browser-primary);
+  }
+}
+
+/* Font family overrides */
+.font-sans {
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', Consolas, monospace;
+}
