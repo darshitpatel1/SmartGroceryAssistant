@@ -226,35 +226,33 @@ export function Chatbot({ className }: ChatbotProps) {
         </p>
       </div>
 
-      {/* Messages - Fixed height with scroll */}
-      <div className="flex-1 min-h-0">
-        <ScrollArea className="h-full p-4">
-          <div className="space-y-4">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                {renderMessage(message)}
-              </div>
-            ))}
-            {isTyping && (
-              <div className="flex justify-start">
-                <div className="max-w-[80%] rounded-lg p-3 bg-browser-border text-browser-text">
-                  <div className="flex items-center gap-2">
-                    <Bot className="w-4 h-4 text-browser-primary" />
-                    <div className="flex gap-1">
-                      <div className="w-2 h-2 bg-browser-text-secondary rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-browser-text-secondary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                      <div className="w-2 h-2 bg-browser-text-secondary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                    </div>
+      {/* Messages - Fixed height with internal scroll */}
+      <div className="flex-1 overflow-hidden">
+        <div className="h-full overflow-y-auto p-4 space-y-4" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              {renderMessage(message)}
+            </div>
+          ))}
+          {isTyping && (
+            <div className="flex justify-start">
+              <div className="max-w-[80%] rounded-lg p-3 bg-browser-border text-browser-text">
+                <div className="flex items-center gap-2">
+                  <Bot className="w-4 h-4 text-browser-primary" />
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 bg-browser-text-secondary rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-browser-text-secondary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                    <div className="w-2 h-2 bg-browser-text-secondary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                   </div>
                 </div>
               </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-        </ScrollArea>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
       </div>
 
       {/* Input - Fixed at bottom */}

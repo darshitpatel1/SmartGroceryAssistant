@@ -888,29 +888,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!page || !browser || !aiAssistant) return;
 
       try {
-        // Navigate to Flipp.com with the search
+        // Build the Flipp URL
         const flippUrl = `https://flipp.com/search/${encodeURIComponent(item)}?postal_code=${postalCode}`;
         console.log("Searching Flipp for:", item, "at", flippUrl);
         
+        // Notify user that we're navigating to Flipp
+        socket.emit("ai_response", { 
+          message: `🔍 Navigating to Flipp.com to search for "${item}"...`, 
+          type: 'info' 
+        });
+
+        // Navigate to Flipp URL (this will show in the browser viewport)
+        socket.emit("loading", { status: "starting" });
         await page.goto(flippUrl, { 
           waitUntil: 'networkidle2',
           timeout: 30000 
         });
 
+        // Emit URL update so it shows in browser
+        socket.emit("url_update", { url: flippUrl });
+        socket.emit("loading", { status: "complete" });
+
         // Wait for page to load and content to appear
+        socket.emit("ai_response", { 
+          message: `📄 Page loaded, waiting for search results to appear...`, 
+          type: 'info' 
+        });
         await new Promise(resolve => setTimeout(resolve, 3000));
 
         // Take screenshot for AI analysis
+        socket.emit("ai_response", { 
+          message: `📸 Taking screenshot for AI analysis...`, 
+          type: 'info' 
+        });
+        
         const screenshot = await page.screenshot({ 
           encoding: 'base64',
           type: 'jpeg',
           quality: 80
         });
 
+        // Notify AI analysis start
+        socket.emit("ai_response", { 
+          message: `🤖 Analyzing prices with AI...`, 
+          type: 'info' 
+        });
+
         // Use AI to analyze the screenshot
-        const analysis = await aiAssistant.analyzeFlippScreenshots([
-          { item, screenshot: screenshot as string }
-        ]);
+        const analysis = await aiAssistant.analyzeFlippScreenshots(
+          item,
+          [screenshot as string]
+        );
 
         // Send deal information back to client
         if (analysis.analyses && analysis.analyses.length > 0) {
@@ -923,6 +951,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             points: bestDeal.points,
             confidence: bestDeal.confidence
           });
+        } else {
+          socket.emit("ai_response", { 
+            message: `No clear price information found for ${item}. The store might be out of stock or the page didn't load properly.`, 
+            type: 'info' 
+          });
         }
 
       } catch (error) {
@@ -933,11 +966,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
 
+    // Store conversation history for context
+    let conversationHistory: Array<{role: 'user' | 'assistant', content: string}> = [];
+
     // AI Shopping Assistant Events
     socket.on("ai_chat", async ({ message, type }: { message: string; type?: 'start' | 'message' }) => {
       try {
         if (!aiAssistant) {
           aiAssistant = new AIShoppingAssistant();
+        }
+
+        // Add user message to conversation history
+        conversationHistory.push({ role: 'user', content: message });
+        
+        // Keep only last 5 exchanges (10 messages total)
+        if (conversationHistory.length > 10) {
+          conversationHistory = conversationHistory.slice(-10);
         }
 
         // Extract postal code and shopping items from message
@@ -946,8 +990,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (postalCode && shoppingItems.length > 0) {
           // User provided both postal code and items - start automatic search
+          const responseMsg = `Great! I detected postal code ${postalCode} and ${shoppingItems.length} item(s). Let me find the best prices for you...`;
+          conversationHistory.push({ role: 'assistant', content: responseMsg });
+          
           socket.emit("ai_response", { 
-            message: `Great! I detected postal code ${postalCode} and ${shoppingItems.length} item(s). Let me find the best prices for you...`, 
+            message: responseMsg, 
             type: 'info' 
           });
 
@@ -968,36 +1015,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
           
+          const completionMsg = `Price search complete! I found deals for ${shoppingItems.length} item(s).`;
+          conversationHistory.push({ role: 'assistant', content: completionMsg });
+          
           socket.emit("search_complete", { 
-            summary: `Price search complete! I found deals for ${shoppingItems.length} item(s).`,
+            summary: completionMsg,
             nextSteps: "Feel free to ask me about specific stores or if you need prices for more items."
           });
           
         } else if (postalCode) {
+          const responseMsg = `Perfect! I have your postal code: ${postalCode}. Now please tell me what items you're looking for (like "milk", "bread", "eggs").`;
+          conversationHistory.push({ role: 'assistant', content: responseMsg });
+          
           socket.emit("ai_response", { 
-            message: `Perfect! I have your postal code: ${postalCode}. Now please tell me what items you're looking for (like "milk", "bread", "eggs").`, 
+            message: responseMsg, 
             type: 'info' 
           });
         } else if (shoppingItems.length > 0) {
+          const responseMsg = `I see you want: ${shoppingItems.map(item => item.name).join(', ')}. Could you also provide your postal code so I can find local store prices?`;
+          conversationHistory.push({ role: 'assistant', content: responseMsg });
+          
           socket.emit("ai_response", { 
-            message: `I see you want: ${shoppingItems.map(item => item.name).join(', ')}. Could you also provide your postal code so I can find local store prices?`, 
+            message: responseMsg, 
             type: 'info' 
           });
         } else {
-          // Regular AI response for general questions
+          // Regular AI response for general questions with conversation context
           let response: string;
           if (type === 'start') {
             response = await aiAssistant.startShoppingSession();
           } else {
-            response = await aiAssistant.processUserMessage(message);
+            // Add context from conversation history
+            const contextMessage = conversationHistory.length > 0 
+              ? `Previous conversation context (last 5 messages for reference only): ${JSON.stringify(conversationHistory.slice(-5))}\n\nCurrent question: ${message}`
+              : message;
+            response = await aiAssistant.processUserMessage(contextMessage);
           }
+          
+          conversationHistory.push({ role: 'assistant', content: response });
           socket.emit("ai_response", { message: response, type: 'info' });
         }
 
       } catch (error) {
         console.error("AI chat error:", error);
+        const errorMsg = "I'm having trouble right now. Please try again.";
+        conversationHistory.push({ role: 'assistant', content: errorMsg });
+        
         socket.emit("ai_response", { 
-          message: "I'm having trouble right now. Please try again.", 
+          message: errorMsg, 
           type: 'error' 
         });
       }
