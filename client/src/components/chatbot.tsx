@@ -58,12 +58,36 @@ export function Chatbot({ className }: ChatbotProps) {
 
     const handleDealFound = (data: any) => {
       setIsTyping(false);
-      addMessage(`Best deal found for ${data.item}!`, 'bot', 'deal', data);
+      
+      // Send deal to canvas instead of displaying in chat
+      if ((window as any).updateGroceryDeals) {
+        const deal = {
+          id: Date.now().toString() + Math.random(),
+          item: data.item,
+          brand: data.brand,
+          store: data.store,
+          price: data.price,
+          packageSize: data.packageSize,
+          savings: data.savings,
+          points: data.points,
+          confidence: data.confidence || 90,
+          isBest: data.dealIndex === 1 // First deal is usually the best
+        };
+        
+        // Get existing deals and add new one
+        const existingDeals = (window as any).currentDeals || [];
+        const updatedDeals = [...existingDeals, deal];
+        (window as any).currentDeals = updatedDeals;
+        (window as any).updateGroceryDeals(updatedDeals);
+      }
+      
+      // Add a simple notification to chat instead of full deal card
+      addMessage(`Found deal ${data.dealIndex}/${data.totalDeals}: ${data.brand || ''} ${data.item} at ${data.store}`, 'bot', 'info');
     };
 
     const handleSearchComplete = (data: { summary: string; nextSteps: string }) => {
       setIsTyping(false);
-      addMessage(data.summary, 'bot', 'info');
+      addMessage(data.summary, 'bot', 'analysis');
       if (data.nextSteps) {
         setTimeout(() => addMessage(data.nextSteps, 'bot', 'info'), 1000);
       }
@@ -106,6 +130,12 @@ export function Chatbot({ className }: ChatbotProps) {
 
     // Add user message
     addMessage(inputValue, 'user');
+    
+    // Clear existing deals when starting new search
+    if ((window as any).updateGroceryDeals) {
+      (window as any).currentDeals = [];
+      (window as any).updateGroceryDeals([]);
+    }
     
     // Send to AI assistant
     setIsTyping(true);

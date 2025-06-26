@@ -292,17 +292,23 @@ export function WishlistCanvas() {
                         return (
                           <>
                             <div className="flex items-start justify-between mb-6">
-                              <div>
+                              <div className="flex-1">
                                 <h4 className="text-2xl font-bold text-white mb-2">
                                   {bestDeal.brand && `${bestDeal.brand} `}{bestDeal.item}
                                 </h4>
                                 {bestDeal.packageSize && (
-                                  <p className="text-lg text-gray-300">{bestDeal.packageSize}</p>
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Badge variant="outline" className="border-yellow-500 text-yellow-400 bg-yellow-900/30 text-lg px-3 py-1 font-bold">
+                                      {bestDeal.packageSize}
+                                    </Badge>
+                                    <span className="text-sm text-gray-400">package size</span>
+                                  </div>
                                 )}
+                                <div className="text-lg text-white">{bestDeal.store}</div>
                               </div>
                               <div className="text-right">
                                 <div className="text-4xl font-bold text-green-300 mb-2">{bestDeal.price}</div>
-                                <div className="text-lg text-white">{bestDeal.store}</div>
+                                <div className="text-sm text-gray-400">Best Price</div>
                               </div>
                             </div>
                             
@@ -333,28 +339,32 @@ export function WishlistCanvas() {
                       <CardContent className="p-6">
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
-                            <h5 className="font-medium text-white text-lg mb-2">
+                            <h5 className="font-medium text-white text-lg mb-3">
                               {deal.brand && `${deal.brand} `}{deal.item}
                             </h5>
-                            <div className="flex items-center gap-6 text-gray-400 mb-2">
-                              <span className="text-lg">{deal.store}</span>
-                              {deal.packageSize && <span>{deal.packageSize}</span>}
-                              <Badge variant="outline" className="border-gray-600 text-gray-400">
-                                {deal.confidence}%
+                            <div className="flex items-center gap-3 mb-3">
+                              <span className="text-base text-gray-300">{deal.store}</span>
+                              {deal.packageSize && (
+                                <Badge variant="outline" className="border-blue-500 text-blue-400 bg-blue-900/30 font-bold">
+                                  {deal.packageSize}
+                                </Badge>
+                              )}
+                              <Badge variant="outline" className="border-gray-600 text-gray-400 text-xs">
+                                {deal.confidence}% match
                               </Badge>
                             </div>
                             {deal.savings && (
-                              <div className="flex items-center gap-2 text-orange-400">
-                                <Zap className="w-4 h-4" />
-                                {deal.savings}
+                              <div className="flex items-center gap-2 text-orange-400 bg-orange-900/20 px-2 py-1 rounded-md w-fit">
+                                <Zap className="w-3 h-3" />
+                                <span className="text-sm font-medium">{deal.savings}</span>
                               </div>
                             )}
                           </div>
                           <div className="text-right">
                             <div className="text-2xl font-bold text-white mb-2">{deal.price}</div>
-                            <Button variant="outline" className="border-gray-600 hover:bg-gray-700">
-                              <Plus className="w-4 h-4 mr-2" />
-                              Add to Cart
+                            <Button className="bg-green-600 hover:bg-green-700 text-white">
+                              <Heart className="w-4 h-4 mr-2" />
+                              Save Deal
                             </Button>
                           </div>
                         </div>
