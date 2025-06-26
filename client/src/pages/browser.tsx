@@ -1,16 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, useParams } from 'wouter';
 import { useSocket } from '@/hooks/use-socket';
+import { useSidebar } from '@/hooks/useSidebarToggle';
 import { Chatbot } from '@/components/chatbot';
 import { BrowserViewport } from '@/components/browser-viewport';
 import { WishlistCanvas } from '@/components/wishlist-canvas';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
 
 export default function Browser() {
   const [, setLocation] = useLocation();
   const params = useParams();
   const groupId = params?.groupId;
+  const { isVisible, toggle } = useSidebar();
   const [url, setUrl] = useState('');
   const [zoomLevel, setZoomLevel] = useState(1);
   const { connected, frame, currentUrl, canGoBack, canGoForward, isLoading, browse, click, doubleClick, focusInput, type, scroll, pressKey, zoom, navigate } = useSocket();
@@ -70,6 +72,13 @@ export default function Browser() {
       if (e.altKey) modifiers.push('alt');
       if (e.metaKey) modifiers.push('meta');
 
+      // Sidebar toggle shortcut
+      if (e.ctrlKey && e.key === 'b') {
+        e.preventDefault();
+        toggle();
+        return;
+      }
+
       // Common browser shortcuts
       if (e.ctrlKey && e.key === 'r') {
         e.preventDefault();
@@ -112,25 +121,56 @@ export default function Browser() {
 
     document.addEventListener('keydown', handleGlobalKeyDown);
     return () => document.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [connected, pressKey, type]);
+  }, [connected, pressKey, type, toggle]);
 
   return (
     <div className="h-full flex flex-col bg-black text-white">
       {/* Back button header */}
       <div className="bg-gray-900 border-b border-gray-700 p-3 flex-shrink-0">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setLocation('/')}
-          className="text-gray-300 hover:text-white hover:bg-gray-800 flex items-center gap-2"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Dashboard
-        </Button>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setLocation('/')}
+              className="text-gray-300 hover:text-white hover:bg-gray-800 p-2"
+              title="Back to Dashboard"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggle}
+              className="text-gray-300 hover:text-white hover:bg-gray-800 p-2"
+              title={isVisible ? "Hide Sidebar (Ctrl+B)" : "Show Sidebar (Ctrl+B)"}
+            >
+              {isVisible ? (
+                <PanelLeftClose className="w-4 h-4" />
+              ) : (
+                <PanelLeftOpen className="w-4 h-4" />
+              )}
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Main browser content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Floating sidebar toggle button - shown when sidebar is hidden */}
+        {!isVisible && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggle}
+            className="absolute top-4 left-4 z-10 bg-gray-800/90 backdrop-blur-sm border border-gray-600 text-gray-300 hover:text-white hover:bg-gray-700/90 shadow-lg p-2"
+            title="Show Sidebar (Ctrl+B)"
+          >
+            <PanelLeftOpen className="w-4 h-4" />
+          </Button>
+        )}
+
         {/* Hidden browser viewport but keep backend connection */}
         <div className="hidden">
           <BrowserViewport 

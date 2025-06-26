@@ -5,15 +5,18 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { UserProfileSidebar } from "@/components/user-profile-sidebar";
 import { GroupInfoSidebar } from "@/components/group-info-sidebar";
+import { SidebarProvider, useSidebar } from "@/hooks/useSidebarToggle";
 import Dashboard from "@/pages/dashboard";
 import Browser from "@/pages/browser";
 
 function Router() {
+  const { isVisible } = useSidebar();
+  
   return (
     <Switch>
       <Route path="/" component={() => (
         <div className="flex h-screen bg-browser-bg">
-          <UserProfileSidebar />
+          {isVisible && <UserProfileSidebar />}
           <main className="flex-1 overflow-hidden">
             <Dashboard />
           </main>
@@ -22,7 +25,7 @@ function Router() {
       
       <Route path="/browser" component={() => (
         <div className="flex h-screen bg-browser-bg">
-          <UserProfileSidebar />
+          {isVisible && <UserProfileSidebar />}
           <main className="flex-1 overflow-hidden">
             <Browser />
           </main>
@@ -31,7 +34,7 @@ function Router() {
       
       <Route path="/:groupId/browser" component={({ params }) => (
         <div className="flex h-screen bg-browser-bg">
-          <GroupInfoSidebar groupId={params?.groupId} />
+          {isVisible && <GroupInfoSidebar groupId={params?.groupId} />}
           <main className="flex-1 overflow-hidden">
             <Browser />
           </main>
@@ -45,8 +48,10 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Router />
+        <SidebarProvider>
+          <Toaster />
+          <Router />
+        </SidebarProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
