@@ -32,7 +32,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await browser.close();
         }
 
-        // Launch new browser
+        // Launch new browser with more stable configuration
         browser = await puppeteer.launch({ 
           headless: true,
           executablePath: '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium',
@@ -44,15 +44,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
             '--no-first-run',
             '--no-zygote',
             '--single-process',
-            '--disable-gpu'
+            '--disable-gpu',
+            '--disable-web-security',
+            '--disable-blink-features=AutomationControlled',
+            '--disable-extensions',
+            '--disable-plugins'
           ]
         });
         
         page = await browser.newPage();
         await page.setViewport({ width: 1280, height: 720 });
         
-        // Navigate to URL
-        await page.goto(url, { waitUntil: "domcontentloaded" });
+        // Set user agent to avoid detection
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+        
+        // Inject JavaScript to improve interaction reliability
+        await page.evaluateOnNewDocument(() => {
+          // Prevent focus loss and improve input handling
+          let lastFocusedElement: HTMLElement | null = null;
+          
+          document.addEventListener('focusin', (e) => {
+            lastFocusedElement = e.target as HTMLElement;
+          });
+          
+          // Maintain focus on inputs
+          document.addEventListener('click', (e) => {
+            const target = e.target as HTMLElement;
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true') {
+              setTimeout(() => {
+                target.focus();
+              }, 10);
+            }
+          });
+          
+          // Store last focused element globally for typing
+          (window as any).__lastFocusedInput = () => lastFocusedElement;
+        });
+        
+        // Navigate to URL with better error handling
+        await page.goto(url, { 
+          waitUntil: "networkidle0",
+          timeout: 30000
+        });
         
         // Set up CDP for screen capture
         cdp = await page.target().createCDPSession();
@@ -102,71 +135,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const x = xNorm * viewport.width;
           const y = yNorm * viewport.height;
           
-          // Get element at coordinates to determine interaction type
-          const elementInfo = await page.evaluate((clickX, clickY) => {
+          // Advanced element interaction using page.evaluate for better reliability
+          const clickResult = await page.evaluate((clickX, clickY) => {
             const element = document.elementFromPoint(clickX, clickY) as HTMLElement;
-            if (!element) return null;
+            if (!element) return { success: false, reason: 'No element found' };
             
             const tagName = element.tagName.toLowerCase();
-            const type = element.getAttribute('type');
+            const type = element.getAttribute('type') || '';
             const isInput = tagName === 'input' || tagName === 'textarea';
-            const isButton = tagName === 'button' || tagName === 'a' || element.onclick !== null;
-            const isClickable = element.style.cursor === 'pointer' || 
-                              element.getAttribute('role') === 'button' ||
-                              isButton;
             const isContentEditable = element.contentEditable === 'true';
-            const isSelect = tagName === 'select';
+            const isClickable = tagName === 'button' || tagName === 'a' || 
+                              element.onclick !== null ||
+                              element.style.cursor === 'pointer' ||
+                              element.getAttribute('role') === 'button';
             
-            return {
-              tagName,
-              type,
-              isInput,
-              isButton,
-              isClickable,
-              isContentEditable,
-              isSelect,
-              className: element.className,
-              id: element.id
-            };
+            try {
+              // Handle different element types
+              if (isInput || isContentEditable) {
+                // For input elements, ensure proper focus
+                element.focus();
+                
+                // Clear any existing selection and set cursor position for text inputs
+                if ((tagName === 'input' && ['text', 'email', 'password', 'search', 'url', 'tel'].includes(type)) || 
+                    tagName === 'textarea') {
+                  const inputElement = element as HTMLInputElement | HTMLTextAreaElement;
+                  
+                  // Calculate cursor position based on click position
+                  const rect = element.getBoundingClientRect();
+                  const clickPosition = clickX - rect.left;
+                  const textWidth = inputElement.value.length * 8; // Approximate character width
+                  const cursorPos = Math.min(inputElement.value.length, Math.floor((clickPosition / rect.width) * inputElement.value.length));
+                  
+                  inputElement.setSelectionRange(cursorPos, cursorPos);
+                }
+                
+                // Trigger focus and input events
+                element.dispatchEvent(new FocusEvent('focus', { bubbles: true }));
+                element.dispatchEvent(new Event('click', { bubbles: true }));
+                
+                return {
+                  success: true,
+                  type: 'input',
+                  tagName,
+                  inputType: type,
+                  focused: document.activeElement === element
+                };
+              } else {
+                // For clickable elements, trigger click event
+                element.click();
+                
+                return {
+                  success: true,
+                  type: 'click',
+                  tagName,
+                  href: element.getAttribute('href'),
+                  onclick: element.onclick !== null
+                };
+              }
+            } catch (error) {
+              return {
+                success: false,
+                reason: error instanceof Error ? error.message : 'Unknown error',
+                tagName,
+                type
+              };
+            }
           }, x, y);
           
-          // Enhanced click handling based on element type
-          if (elementInfo?.isInput || elementInfo?.isContentEditable) {
-            // For input fields, click and focus
-            await page.mouse.click(x, y);
-            await new Promise(resolve => setTimeout(resolve, 100)); // Small delay for focus
-            
-            // Ensure the element is focused
-            await page.evaluate((clickX, clickY) => {
-              const element = document.elementFromPoint(clickX, clickY) as HTMLInputElement;
-              if (element && (element.tagName.toLowerCase() === 'input' || 
-                             element.tagName.toLowerCase() === 'textarea' ||
-                             element.contentEditable === 'true')) {
-                element.focus();
-                // For text inputs, place cursor at click position if possible
-                if (element.type === 'text' || element.type === 'email' || 
-                    element.type === 'password' || element.tagName.toLowerCase() === 'textarea') {
-                  element.click();
-                }
-              }
-            }, x, y);
-            
-            console.log(`Clicked and focused input at: ${x}, ${y}`);
-          } else if (elementInfo?.isSelect) {
-            // For select elements, click to open dropdown
-            await page.mouse.click(x, y);
-            console.log(`Clicked select element at: ${x}, ${y}`);
-          } else {
-            // For other elements, use regular click
-            await page.mouse.click(x, y);
-            console.log(`Clicked at: ${x}, ${y}`);
-          }
+          // Also perform physical click for browser handling
+          await page.mouse.click(x, y);
           
-          // Send element info back to client for debugging
-          socket.emit("element_clicked", elementInfo);
+          console.log(`Click result at ${x}, ${y}:`, clickResult);
+          socket.emit("element_clicked", clickResult);
         }
       } catch (error) {
         console.error("Click error:", error);
+        socket.emit("click_error", { message: error instanceof Error ? error.message : 'Unknown click error' });
       }
     });
 
@@ -176,54 +220,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!page) return;
       
       try {
-        // Check if there's a focused input element
-        const focusedElement = await page.evaluate(() => {
-          const active = document.activeElement as HTMLElement;
-          if (!active) return null;
+        // Enhanced typing with better focus management
+        const typeResult = await page.evaluate((textToType) => {
+          const activeElement = document.activeElement as HTMLElement;
           
-          const tagName = active.tagName.toLowerCase();
-          const isInput = tagName === 'input' || tagName === 'textarea';
-          const isContentEditable = active.contentEditable === 'true';
+          // Check if we have a properly focused input
+          if (activeElement && 
+              (activeElement.tagName.toLowerCase() === 'input' || 
+               activeElement.tagName.toLowerCase() === 'textarea' ||
+               activeElement.contentEditable === 'true')) {
+            
+            const inputElement = activeElement as HTMLInputElement | HTMLTextAreaElement;
+            
+            // For input elements, insert text at cursor position
+            if ('selectionStart' in inputElement && 'selectionEnd' in inputElement) {
+              const start = inputElement.selectionStart || 0;
+              const end = inputElement.selectionEnd || 0;
+              const currentValue = inputElement.value;
+              
+              // Insert text at cursor position
+              inputElement.value = currentValue.substring(0, start) + textToType + currentValue.substring(end);
+              
+              // Update cursor position
+              const newCursorPos = start + textToType.length;
+              inputElement.setSelectionRange(newCursorPos, newCursorPos);
+              
+              // Trigger input events
+              inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+              inputElement.dispatchEvent(new Event('change', { bubbles: true }));
+              
+              return {
+                success: true,
+                method: 'direct_insertion',
+                element: inputElement.tagName.toLowerCase(),
+                value: inputElement.value
+              };
+            }
+            
+            return { success: false, reason: 'No selection support' };
+          }
           
-          return {
-            tagName,
-            type: active.getAttribute('type'),
-            isInput,
-            isContentEditable,
-            canType: isInput || isContentEditable
-          };
-        });
-        
-        if (focusedElement?.canType) {
-          // Type directly into the focused element
-          await page.keyboard.type(text);
-          console.log("Typed into focused element:", text);
-        } else {
-          // Try to find and focus the first available input
-          const inputFocused = await page.evaluate(() => {
-            const inputs = Array.from(document.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"]), textarea, [contenteditable="true"]'));
+          // Try to find the best input to focus
+          const searchInputs = [
+            'input[type="text"]',
+            'input[type="search"]', 
+            'input[type="email"]',
+            'input[type="password"]',
+            'input[type="url"]',
+            'textarea',
+            'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="image"]):not([type="radio"]):not([type="checkbox"])',
+            '[contenteditable="true"]'
+          ];
+          
+          for (const selector of searchInputs) {
+            const inputs = Array.from(document.querySelectorAll(selector)) as HTMLElement[];
             for (const input of inputs) {
-              const element = input as HTMLElement;
-              if (element.offsetParent !== null && !element.hasAttribute('disabled')) {
-                element.focus();
-                return true;
+              const rect = input.getBoundingClientRect();
+              
+              // Check if input is visible and not disabled
+              if (rect.width > 0 && rect.height > 0 && 
+                  !input.hasAttribute('disabled') && 
+                  !input.hasAttribute('readonly') &&
+                  input.offsetParent !== null) {
+                
+                input.focus();
+                input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                
+                // Wait a moment for focus, then insert text
+                setTimeout(() => {
+                  if ('value' in input) {
+                    (input as HTMLInputElement).value = textToType;
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                  } else if (input.contentEditable === 'true') {
+                    input.textContent = textToType;
+                  }
+                }, 50);
+                
+                return {
+                  success: true,
+                  method: 'auto_focus',
+                  element: input.tagName.toLowerCase(),
+                  type: input.getAttribute('type'),
+                  selector: selector
+                };
               }
             }
-            return false;
-          });
-          
-          if (inputFocused) {
-            await new Promise(resolve => setTimeout(resolve, 100)); // Wait for focus
-            await page.keyboard.type(text);
-            console.log("Typed into auto-focused input:", text);
-          } else {
-            // Fall back to regular typing (for keyboard shortcuts, etc.)
-            await page.keyboard.type(text);
-            console.log("Typed globally:", text);
           }
+          
+          return { success: false, reason: 'No suitable input found' };
+        }, text);
+        
+        // If direct insertion failed, use keyboard typing as fallback
+        if (!typeResult.success) {
+          await page.keyboard.type(text);
+          console.log("Typed using keyboard fallback:", text);
+        } else {
+          console.log("Type result:", typeResult);
         }
+        
+        socket.emit("type_result", typeResult);
       } catch (error) {
         console.error("Type error:", error);
+        socket.emit("type_error", { message: error instanceof Error ? error.message : 'Unknown type error' });
       }
     });
 
