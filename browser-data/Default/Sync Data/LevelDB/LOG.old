@@ -1,3 +1,3 @@
-2025/06/26-02:57:23.978 4fa1 Reusing MANIFEST /home/runner/workspace/browser-data/Default/Sync Data/LevelDB/MANIFEST-000001
-2025/06/26-02:57:23.979 4fa1 Recovering log #3
-2025/06/26-02:57:23.980 4fa1 Reusing old log /home/runner/workspace/browser-data/Default/Sync Data/LevelDB/000003.log 
+2025/06/26-03:57:37.447 6492 Reusing MANIFEST /home/runner/workspace/browser-data/Default/Sync Data/LevelDB/MANIFEST-000001
+2025/06/26-03:57:37.448 6492 Recovering log #3
+2025/06/26-03:57:37.449 6492 Reusing old log /home/runner/workspace/browser-data/Default/Sync Data/LevelDB/000003.log 

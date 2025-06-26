@@ -1030,23 +1030,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             page = await browser.newPage();
             await page.setViewport({ width: 1280, height: 720 });
             
-            // Set up frame streaming for AI-initialized browser
-            const client = await page.target().createCDPSession();
-            await client.send('Page.enable');
-            await client.send('Page.startScreencast', {
-              format: 'jpeg',
-              quality: 80,
-              maxWidth: 1280,
-              maxHeight: 720,
-              everyNthFrame: 1
-            });
-
-            client.on('Page.screencastFrame', async ({ data, metadata }) => {
-              socket.emit('frame', data);
-              await client.send('Page.screencastFrameAck', { sessionId: metadata.sessionId });
-            });
+            // Skip frame streaming for AI-initialized browser to avoid crashes
+            // The user will see the results through screenshots in the chat
+            console.log("AI Chat: Skipping frame streaming to prevent crashes");
             
-            console.log("AI Chat: Browser initialized successfully with frame streaming");
+            console.log("AI Chat: Browser initialized successfully");
           } catch (error) {
             console.error("AI Chat: Failed to initialize browser:", error);
             socket.emit("ai_response", { 
