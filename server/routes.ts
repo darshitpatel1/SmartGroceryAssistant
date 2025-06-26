@@ -22,6 +22,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     let browser: Browser | null = null;
     let page: Page | null = null;
     let cdp: CDPSession | null = null;
+    let aiAssistant: AIShoppingAssistant | null = null;
 
     socket.on("browse", async ({ url }: { url: string }) => {
       try {
@@ -879,6 +880,167 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       } catch (error) {
         console.error("Double click error:", error);
+      }
+    });
+
+    // AI Shopping Assistant Events
+    socket.on("ai_chat", async ({ message, type }: { message: string; type?: 'start' | 'message' }) => {
+      try {
+        if (!aiAssistant) {
+          aiAssistant = new AIShoppingAssistant();
+        }
+
+        let response: string;
+        if (type === 'start') {
+          response = await aiAssistant.startShoppingSession();
+        } else {
+          response = await aiAssistant.processUserMessage(message);
+        }
+
+        socket.emit("ai_response", { response, type: 'text' });
+
+        // Check if user provided postal code and shopping list
+        const postalCode = aiAssistant.extractPostalCode(message);
+        if (postalCode) {
+          socket.emit("ai_response", { 
+            response: `Great! I detected postal code: ${postalCode}`, 
+            type: 'info',
+            data: { postalCode }
+          });
+        }
+
+      } catch (error) {
+        console.error("AI chat error:", error);
+        socket.emit("ai_response", { 
+          response: "Sorry, I'm having trouble processing your request right now.", 
+          type: 'error' 
+        });
+      }
+    });
+
+    socket.on("start_price_search", async ({ item, postalCode }: { item: string; postalCode: string }) => {
+      try {
+        if (!page || !browser) {
+          socket.emit("ai_response", { 
+            response: "Browser not ready. Please wait for connection.", 
+            type: 'error' 
+          });
+          return;
+        }
+
+        socket.emit("ai_response", { 
+          response: `Starting price search for "${item}" in area ${postalCode}...`, 
+          type: 'info' 
+        });
+
+        // Navigate to Flipp.com with the search
+        const flippUrl = `https://flipp.com/search/${encodeURIComponent(item)}?postal_code=${postalCode}`;
+        console.log("Navigating to Flipp URL:", flippUrl);
+        
+        await page.goto(flippUrl, { 
+          waitUntil: 'networkidle2',
+          timeout: 30000 
+        });
+
+        // Wait for page to load completely
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        // Take initial screenshot
+        const screenshot1 = await page.screenshot({ 
+          encoding: 'base64',
+          fullPage: false,
+          type: 'jpeg',
+          quality: 80
+        });
+
+        // Scroll down and take another screenshot
+        await page.evaluate(() => {
+          window.scrollBy(0, window.innerHeight);
+        });
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        const screenshot2 = await page.screenshot({ 
+          encoding: 'base64',
+          fullPage: false,
+          type: 'jpeg',
+          quality: 80
+        });
+
+        socket.emit("ai_response", { 
+          response: "Screenshots captured! Analyzing prices...", 
+          type: 'info' 
+        });
+
+        // Analyze screenshots with AI
+        if (aiAssistant) {
+          const analysis = await aiAssistant.analyzeFlippScreenshots(item, [screenshot1, screenshot2]);
+          
+          socket.emit("ai_response", { 
+            response: analysis.summary, 
+            type: 'analysis',
+            data: analysis
+          });
+
+          if (analysis.analyses.length > 0) {
+            const bestDeal = analysis.analyses[0];
+            socket.emit("ai_response", { 
+              response: `Best deal found: ${bestDeal.item} at ${bestDeal.cheapestStore} for ${bestDeal.price}${bestDeal.savings ? ` (${bestDeal.savings})` : ''}`, 
+              type: 'deal',
+              data: bestDeal
+            });
+          }
+        }
+
+      } catch (error) {
+        console.error("Price search error:", error);
+        socket.emit("ai_response", { 
+          response: "Error during price search. Please try again.", 
+          type: 'error' 
+        });
+      }
+    });
+
+    socket.on("process_shopping_list", async ({ items, postalCode }: { items: string[]; postalCode: string }) => {
+      try {
+        if (!aiAssistant) {
+          aiAssistant = new AIShoppingAssistant();
+        }
+
+        socket.emit("ai_response", { 
+          response: `Processing shopping list of ${items.length} items for postal code ${postalCode}...`, 
+          type: 'info' 
+        });
+
+        const results = [];
+        
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i].trim();
+          if (!item) continue;
+
+          socket.emit("ai_response", { 
+            response: `Searching for item ${i + 1}/${items.length}: ${item}`, 
+            type: 'progress',
+            data: { current: i + 1, total: items.length, item }
+          });
+
+          // Trigger price search for this item
+          socket.emit("start_price_search", { item, postalCode });
+          
+          // Wait between searches to avoid overwhelming the server
+          await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+
+        socket.emit("ai_response", { 
+          response: "Shopping list analysis complete! Check the results above.", 
+          type: 'complete' 
+        });
+
+      } catch (error) {
+        console.error("Shopping list processing error:", error);
+        socket.emit("ai_response", { 
+          response: "Error processing shopping list. Please try again.", 
+          type: 'error' 
+        });
       }
     });
 

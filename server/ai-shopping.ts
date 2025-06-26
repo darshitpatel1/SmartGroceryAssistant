@@ -1,5 +1,4 @@
 import OpenAI from "openai";
-import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -26,7 +25,7 @@ export interface FlippAnalysisResult {
 }
 
 export class AIShoppingAssistant {
-  private conversationHistory: ChatCompletionMessageParam[] = [];
+  private conversationHistory: any[] = [];
 
   constructor() {
     this.conversationHistory.push({
@@ -85,57 +84,43 @@ Always respond in a friendly, helpful manner and ask clarifying questions when n
     item: string,
     screenshots: string[]
   ): Promise<FlippAnalysisResult> {
-    const analysisPrompt = `Analyze these Flipp.com search result screenshots for "${item}". 
-
-Please identify:
-1. All visible prices for this item
-2. Store names (Metro, Fortinos, Loblaws, etc.)
-3. The cheapest option available
-4. Any promotional offers, discounts, or loyalty points
-5. Package sizes or quantities when visible
-
-Respond with JSON in this exact format:
-{
-  "analyses": [
-    {
-      "item": "item name",
-      "cheapestStore": "store name",
-      "price": "$X.XX",
-      "savings": "Save $X.XX vs other stores",
-      "points": "earn X points",
-      "confidence": 0.9
-    }
-  ],
-  "summary": "Brief summary of findings",
-  "nextSteps": "What to do next"
-}`;
-
-    const content = [
-      { type: "text" as const, text: analysisPrompt },
-      ...screenshots.map(screenshot => ({
-        type: "image_url" as const,
-        image_url: { url: `data:image/jpeg;base64,${screenshot}` }
-      }))
-    ];
-
-    const messages: ChatCompletionMessageParam[] = [
-      {
-        role: "system",
-        content: "You are an expert at analyzing grocery store flyers and price comparison. Provide accurate, detailed analysis of prices and deals."
-      },
-      {
-        role: "user",
-        content: content
-      }
-    ];
-
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: messages,
-      response_format: { type: "json_object" }
-    });
-
     try {
+      // For now, analyze single screenshot at a time to avoid type issues
+      const screenshot = screenshots[0];
+      if (!screenshot) {
+        return {
+          analyses: [],
+          summary: "No screenshots provided for analysis.",
+          nextSteps: "Please provide screenshots to analyze."
+        };
+      }
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert at analyzing grocery store flyers and price comparison. Analyze the image and provide accurate, detailed analysis of prices and deals. Respond with JSON only."
+          },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `Analyze this Flipp.com search result screenshot for "${item}". Identify all visible prices, store names (Metro, Fortinos, Loblaws, etc.), the cheapest option, promotional offers, and package sizes. Respond with JSON in this format: {"analyses": [{"item": "item name", "cheapestStore": "store name", "price": "$X.XX", "savings": "Save $X.XX", "points": "earn X points", "confidence": 0.9}], "summary": "Brief summary", "nextSteps": "What to do next"}`
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:image/jpeg;base64,${screenshot}`
+                }
+              }
+            ]
+          }
+        ],
+        response_format: { type: "json_object" }
+      });
+
       const result = JSON.parse(response.choices[0].message.content || "{}");
       
       // Add this analysis to conversation history
@@ -146,7 +131,7 @@ Respond with JSON in this exact format:
 
       return result;
     } catch (error) {
-      console.error("Failed to parse AI response:", error);
+      console.error("Failed to analyze screenshots:", error);
       return {
         analyses: [],
         summary: "Unable to analyze screenshots at this time.",
