@@ -207,26 +207,16 @@ export function Chatbot({ className }: ChatbotProps) {
 
       {/* Controls */}
       <div className="p-4 border-t border-browser-border space-y-3">
-        {/* Browser Interaction Buttons */}
+        {/* Type Mode Toggle */}
         <div className="flex gap-2">
-          <Button
-            onClick={() => focusInput()}
-            disabled={!connected}
-            size="sm"
-            variant="outline"
-            className="flex-1 text-xs"
-          >
-            <Focus className="w-3 h-3 mr-1" />
-            Focus Input
-          </Button>
           <Button
             onClick={() => setTypeMode(!typeMode)}
             size="sm"
             variant={typeMode ? "default" : "outline"}
-            className="flex-1 text-xs"
+            className="w-full text-xs"
           >
             <Type className="w-3 h-3 mr-1" />
-            Type Mode
+            {typeMode ? "Type Mode: ON" : "Chat Mode"}
           </Button>
         </div>
         
@@ -238,7 +228,7 @@ export function Chatbot({ className }: ChatbotProps) {
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder={typeMode ? "Type text to browser..." : "Chat message..."}
-            className="flex-1 bg-browser-bg border-browser-border focus:ring-browser-primary text-sm"
+            className="chatbot-input flex-1 bg-browser-bg border-browser-border focus:ring-browser-primary text-sm"
           />
           <Button
             onClick={handleSend}

@@ -89,14 +89,17 @@ export default function Browser() {
       } else if (e.key === 'Delete') {
         e.preventDefault();
         pressKey('Delete', modifiers);
-      } else if (e.key.length === 1) {
-        // Single character keys
-        e.preventDefault();
-        if (modifiers.length > 0) {
-          pressKey(e.key, modifiers);
-        } else {
+      } else if (e.key.length === 1 && modifiers.length === 0) {
+        // Single character keys without modifiers - only send if not typing in our own inputs
+        const isTypingInOurInput = target.closest('.chatbot-input') || target.closest('.url-input');
+        if (!isTypingInOurInput) {
+          e.preventDefault();
           type(e.key);
         }
+      } else if (e.key.length === 1 && modifiers.length > 0) {
+        // Character with modifiers
+        e.preventDefault();
+        pressKey(e.key, modifiers);
       }
     };
 
@@ -143,7 +146,7 @@ export default function Browser() {
           <input
             type="url"
             placeholder="Enter URL (e.g., https://google.com)"
-            className="flex-1 px-3 py-2 bg-browser-bg border border-browser-border rounded text-browser-text placeholder-browser-text-secondary focus:outline-none focus:ring-2 focus:ring-browser-primary"
+            className="url-input flex-1 px-3 py-2 bg-browser-bg border border-browser-border rounded text-browser-text placeholder-browser-text-secondary focus:outline-none focus:ring-2 focus:ring-browser-primary"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             onFocus={(e) => e.target.select()}

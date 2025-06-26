@@ -245,35 +245,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Handle different element types with appropriate interactions
           switch (elementInfo.type) {
             case 'input':
-              // For input fields, ensure proper focus and interaction
+              // Click first to trigger any click handlers
+              await page.mouse.click(x, y);
+              await new Promise(resolve => setTimeout(resolve, 100));
+              
+              // Then ensure proper focus and cursor positioning
               const inputResult = await page.evaluate((clickX, clickY) => {
                 const element = document.elementFromPoint(clickX, clickY) as HTMLInputElement;
                 if (element && (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA')) {
-                  // Clear any existing selection
-                  if (document.getSelection) {
-                    document.getSelection()?.removeAllRanges();
-                  }
-                  
-                  // Focus the element
+                  // Force focus
                   element.focus();
                   
-                  // For text inputs, position cursor at click location
+                  // Trigger focus and click events to ensure element is active
+                  element.dispatchEvent(new Event('focus', { bubbles: true }));
+                  element.dispatchEvent(new Event('click', { bubbles: true }));
+                  
+                  // For text inputs, position cursor appropriately
                   if (element.type === 'text' || element.type === 'search' || element.type === 'email' || element.type === 'url' || element.tagName === 'TEXTAREA') {
-                    const rect = element.getBoundingClientRect();
-                    const relativeX = clickX - rect.left;
-                    const elementWidth = rect.width;
-                    
-                    // Calculate approximate cursor position
-                    let cursorPosition = element.value.length;
-                    if (element.value.length > 0) {
-                      const charWidth = elementWidth / element.value.length;
-                      cursorPosition = Math.max(0, Math.min(Math.round(relativeX / charWidth), element.value.length));
-                    }
-                    
+                    // Always place cursor at the end for easier typing
                     try {
-                      element.setSelectionRange(cursorPosition, cursorPosition);
-                    } catch (e) {
                       element.setSelectionRange(element.value.length, element.value.length);
+                    } catch (e) {
+                      // Fallback if setSelectionRange fails
                     }
                   }
                   
@@ -282,15 +275,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     focused: document.activeElement === element,
                     value: element.value,
                     type: element.type,
-                    placeholder: element.placeholder
+                    placeholder: element.placeholder,
+                    tagName: element.tagName
                   };
                 }
                 return { success: false };
               }, x, y);
-              
-              // Then perform the actual click
-              await page.mouse.click(x, y);
-              await new Promise(resolve => setTimeout(resolve, 50));
               
               socket.emit("element_interacted", { type: 'input', success: inputResult.success, details: inputResult });
               break;
@@ -391,46 +381,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         
         if (focusedElement) {
-          // Check if we should replace all text or append
-          const shouldReplaceAll = focusedElement.type === 'search' || 
-                                 focusedElement.placeholder.toLowerCase().includes('search') ||
-                                 focusedElement.type === 'url' ||
-                                 focusedElement.type === 'email';
-          
-          if (shouldReplaceAll) {
-            // Select all and replace for search/url/email inputs
-            await page.keyboard.down('ControlLeft');
-            await page.keyboard.press('KeyA');
-            await page.keyboard.up('ControlLeft');
-            await new Promise(resolve => setTimeout(resolve, 30));
-          }
-          
-          // Type the text with appropriate delay
-          await page.keyboard.type(text, { delay: 25 });
-          
-          // Verify the text was entered
-          const verifyResult = await page.evaluate(() => {
-            const activeElement = document.activeElement as HTMLInputElement;
-            if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
-              return {
-                value: activeElement.value,
-                focused: true,
-                tagName: activeElement.tagName,
-                type: activeElement.type
-              };
+          // For single character typing, just append - don't replace
+          if (text.length === 1) {
+            // Simply type the character without selecting all
+            await page.keyboard.type(text, { delay: 50 });
+          } else {
+            // For longer text, check if we should replace all or append
+            const shouldReplaceAll = focusedElement.type === 'search' && 
+                                   focusedElement.placeholder.toLowerCase().includes('search');
+            
+            if (shouldReplaceAll && focusedElement.value.length > 0) {
+              // Only select all for search inputs that already have content
+              await page.keyboard.down('ControlLeft');
+              await page.keyboard.press('KeyA');
+              await page.keyboard.up('ControlLeft');
+              await new Promise(resolve => setTimeout(resolve, 30));
             }
-            return { focused: false };
-          });
+            
+            // Type the text
+            await page.keyboard.type(text, { delay: 50 });
+          }
           
           socket.emit("text_typed", { 
             success: true, 
             elementType: focusedElement.tagName,
             inputType: focusedElement.type,
-            finalValue: verifyResult.value,
-            replacedAll: shouldReplaceAll
+            textLength: text.length
           });
         } else {
-          // Try to type anyway - might work for contenteditable elements
+          // Try to type anyway
           await page.keyboard.type(text, { delay: 50 });
           socket.emit("text_typed", { success: false, reason: "No input element found" });
         }
