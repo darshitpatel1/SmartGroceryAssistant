@@ -91,6 +91,7 @@ This project is a real-time web browser interface that allows users to control a
 - June 26, 2025. Enhanced browser interaction system with native click handling, fixed input typing system, and proper dropdown support
 - June 26, 2025. Added navigation sidebar and AI chatbot integration
 - June 26, 2025. Fixed input focusing issues and character-by-character typing behavior
+- June 26, 2025. Added cookie persistence and comprehensive input interaction improvements
 
 ## Recent Changes
 
@@ -116,6 +117,14 @@ This project is a real-time web browser interface that allows users to control a
 - **Keyboard Input Control**: Prevented global key capture when typing in app's own input fields
 - **Removed Focus Button**: Eliminated manual focus button as requested by user
 - **Enhanced Type Detection**: Better detection of when to replace vs. append text based on input type
+
+### Cookie Persistence and Advanced Input Handling (June 26, 2025)
+- **Cookie Persistence**: Added userDataDir to Puppeteer for persistent cookies and browser settings
+- **Enhanced Input Detection**: Improved recognition of input containers, contenteditable elements, and nested inputs
+- **Multi-Method Focusing**: Multiple event dispatching and focusing techniques for stubborn input fields
+- **Smart Input Finding**: Priority-based input selection for typing (search inputs first, then text inputs)
+- **Comprehensive Event Handling**: Mousedown, mouseup, click, focus, and focusin events for maximum compatibility
+- **Input Container Support**: Clicks on elements containing inputs now properly focus the child input
 
 ### Technical Implementation
 - Added AppSidebar component with navigation and collapsible functionality
