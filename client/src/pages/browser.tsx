@@ -1,10 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
+import { useLocation, useParams } from 'wouter';
 import { useSocket } from '@/hooks/use-socket';
 import { Chatbot } from '@/components/chatbot';
 import { BrowserViewport } from '@/components/browser-viewport';
 import { WishlistCanvas } from '@/components/wishlist-canvas';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
 
 export default function Browser() {
+  const [, setLocation] = useLocation();
+  const params = useParams();
+  const groupId = params?.groupId;
   const [url, setUrl] = useState('');
   const [zoomLevel, setZoomLevel] = useState(1);
   const { connected, frame, currentUrl, canGoBack, canGoForward, isLoading, browse, click, doubleClick, focusInput, type, scroll, pressKey, zoom, navigate } = useSocket();
@@ -109,26 +115,42 @@ export default function Browser() {
   }, [connected, pressKey, type]);
 
   return (
-    <div className="h-full flex bg-black text-white">
-      {/* Hidden browser viewport but keep backend connection */}
-      <div className="hidden">
-        <BrowserViewport 
-          frame={frame}
-          connected={connected}
-          onViewportClick={(xNorm, yNorm) => click(xNorm, yNorm)}
-          onViewportDoubleClick={(xNorm, yNorm) => doubleClick(xNorm, yNorm)}
-          onViewportScroll={(deltaY) => scroll(deltaY)}
-        />
+    <div className="h-full flex flex-col bg-black text-white">
+      {/* Back button header */}
+      <div className="bg-gray-900 border-b border-gray-700 p-3 flex-shrink-0">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setLocation('/')}
+          className="text-gray-300 hover:text-white hover:bg-gray-800 flex items-center gap-2"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Dashboard
+        </Button>
       </div>
 
-      {/* Main chatbot interface - narrower */}
-      <main className="w-96 bg-black border-r border-gray-800">
-        <Chatbot className="h-full" />
-      </main>
-      
-      {/* Right side grocery canvas - wider */}
-      <div className="flex-1">
-        <WishlistCanvas />
+      {/* Main browser content */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Hidden browser viewport but keep backend connection */}
+        <div className="hidden">
+          <BrowserViewport 
+            frame={frame}
+            connected={connected}
+            onViewportClick={(xNorm, yNorm) => click(xNorm, yNorm)}
+            onViewportDoubleClick={(xNorm, yNorm) => doubleClick(xNorm, yNorm)}
+            onViewportScroll={(deltaY) => scroll(deltaY)}
+          />
+        </div>
+
+        {/* Main chatbot interface - narrower */}
+        <main className="w-96 bg-black border-r border-gray-800">
+          <Chatbot className="h-full" />
+        </main>
+        
+        {/* Right side grocery canvas - wider */}
+        <div className="flex-1">
+          <WishlistCanvas groupId={groupId} />
+        </div>
       </div>
     </div>
   );

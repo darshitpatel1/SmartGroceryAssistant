@@ -1,0 +1,145 @@
+{
+  "user": {
+    "id": "user-1",
+    "name": "Smart Shopper",
+    "avatar": "SS",
+    "postalCode": "M5V 3A1",
+    "totalSavings": 437.47,
+    "memberSince": "2024-01-15"
+  },
+  "stores": [
+    {
+      "id": "loblaws",
+      "name": "Loblaws",
+      "logo": "🛒",
+      "savings": 156.78,
+      "deals": 23
+    },
+    {
+      "id": "metro",
+      "name": "Metro", 
+      "logo": "🏪",
+      "savings": 89.45,
+      "deals": 15
+    },
+    {
+      "id": "food-basics",
+      "name": "Food Basics",
+      "logo": "🏬", 
+      "savings": 67.23,
+      "deals": 18
+    },
+    {
+      "id": "shoppers",
+      "name": "Shoppers Drug Mart",
+      "logo": "💊",
+      "savings": 45.67,
+      "deals": 12
+    },
+    {
+      "id": "no-frills",
+      "name": "No Frills",
+      "logo": "🛍️",
+      "savings": 78.34,
+      "deals": 20
+    }
+  ],
+  "groups": [
+    {
+      "id": "family-shoppers",
+      "name": "Family Shoppers",
+      "memberCount": 4,
+      "totalSavings": 234.56,
+      "myContribution": 47.82,
+      "weeklyGoal": 50.00,
+      "currentWeekSavings": 23.45,
+      "members": [
+        { "id": "user-1", "name": "You", "savings": 47.82, "rank": 2, "avatar": "SS" },
+        { "id": "user-2", "name": "Mom", "savings": 89.45, "rank": 1, "avatar": "M" },
+        { "id": "user-3", "name": "Dad", "savings": 67.23, "rank": 3, "avatar": "D" },
+        { "id": "user-4", "name": "Sister", "savings": 30.06, "rank": 4, "avatar": "S" }
+      ],
+      "recentActivity": [
+        { "member": "Mom", "item": "Milk", "savings": 2.50, "store": "Loblaws", "time": "2h ago" },
+        { "member": "You", "item": "Bread", "savings": 1.20, "store": "Metro", "time": "5h ago" },
+        { "member": "Dad", "item": "Eggs", "savings": 3.80, "store": "No Frills", "time": "1d ago" },
+        { "member": "Sister", "item": "Cheese", "savings": 4.50, "store": "Food Basics", "time": "2d ago" }
+      ]
+    },
+    {
+      "id": "neighborhood-deals",
+      "name": "Neighborhood Deals", 
+      "memberCount": 12,
+      "totalSavings": 1256.78,
+      "myContribution": 89.45,
+      "weeklyGoal": 100.00,
+      "currentWeekSavings": 67.30,
+      "members": [
+        { "id": "user-1", "name": "You", "savings": 89.45, "rank": 6, "avatar": "SS" },
+        { "id": "user-5", "name": "Alice", "savings": 156.32, "rank": 1, "avatar": "A" },
+        { "id": "user-6", "name": "Bob", "savings": 134.21, "rank": 2, "avatar": "B" },
+        { "id": "user-7", "name": "Carol", "savings": 123.45, "rank": 3, "avatar": "C" },
+        { "id": "user-8", "name": "Dave", "savings": 112.34, "rank": 4, "avatar": "D" },
+        { "id": "user-9", "name": "Eve", "savings": 98.76, "rank": 5, "avatar": "E" }
+      ],
+      "recentActivity": [
+        { "member": "Alice", "item": "Organic Apples", "savings": 3.20, "store": "Metro", "time": "1h ago" },
+        { "member": "You", "item": "Greek Yogurt", "savings": 2.80, "store": "Loblaws", "time": "3h ago" },
+        { "member": "Bob", "item": "Protein Bars", "savings": 5.50, "store": "Shoppers", "time": "6h ago" },
+        { "member": "Carol", "item": "Pasta", "savings": 1.75, "store": "No Frills", "time": "8h ago" }
+      ]
+    }
+  ],
+  "recentSearches": [
+    { "item": "Milk", "savings": 3.20, "count": 5 },
+    { "item": "Bread", "savings": 1.50, "count": 3 },
+    { "item": "Eggs", "savings": 2.80, "count": 4 },
+    { "item": "Butter", "savings": 4.20, "count": 2 },
+    { "item": "Cheese", "savings": 5.15, "count": 6 }
+  ],
+  "savedDeals": [
+    {
+      "id": "deal-1732584000000-abc123",
+      "item": "Milk",
+      "brand": "Lactantia",
+      "store": "Metro",
+      "price": "$4.99",
+      "packageSize": "2L",
+      "savings": "$1.50",
+      "savingsAmount": 1.50,
+      "confidence": 95,
+      "isBest": true,
+      "savedAt": "2025-06-25T14:30:00.000Z",
+      "groupId": "family-shoppers",
+      "savedBy": "You"
+    },
+    {
+      "id": "deal-1732580400000-def456",
+      "item": "Bread",
+      "brand": "Wonder",
+      "store": "Loblaws",
+      "price": "$2.99",
+      "packageSize": "675g",
+      "savings": "$1.00",
+      "savingsAmount": 1.00,
+      "confidence": 88,
+      "isBest": false,
+      "savedAt": "2025-06-25T13:15:00.000Z",
+      "savedBy": "You"
+    },
+    {
+      "id": "deal-current-month-1",
+      "item": "Cheese",
+      "brand": "Black Diamond",
+      "store": "No Frills",
+      "price": "$6.99",
+      "packageSize": "400g",
+      "savings": "$2.50",
+      "savingsAmount": 2.50,
+      "confidence": 92,
+      "isBest": true,
+      "savedAt": "2025-06-20T10:00:00.000Z",
+      "savedBy": "You"
+    }
+  ]
+}

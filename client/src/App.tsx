@@ -3,25 +3,41 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AppSidebar } from "@/components/app-sidebar";
-import Home from "@/pages/home";
+import { UserProfileSidebar } from "@/components/user-profile-sidebar";
+import { GroupInfoSidebar } from "@/components/group-info-sidebar";
+import Dashboard from "@/pages/dashboard";
 import Browser from "@/pages/browser";
-import Settings from "@/pages/settings";
-import NotFound from "@/pages/not-found";
 
 function Router() {
   return (
-    <div className="flex h-screen bg-browser-bg">
-      <AppSidebar />
-      <main className="flex-1 overflow-hidden">
-        <Switch>
-          <Route path="/" component={Home} />
-          <Route path="/browser" component={Browser} />
-          <Route path="/settings" component={Settings} />
-          <Route component={NotFound} />
-        </Switch>
-      </main>
-    </div>
+    <Switch>
+      <Route path="/" component={() => (
+        <div className="flex h-screen bg-browser-bg">
+          <UserProfileSidebar />
+          <main className="flex-1 overflow-hidden">
+            <Dashboard />
+          </main>
+        </div>
+      )} />
+      
+      <Route path="/browser" component={() => (
+        <div className="flex h-screen bg-browser-bg">
+          <UserProfileSidebar />
+          <main className="flex-1 overflow-hidden">
+            <Browser />
+          </main>
+        </div>
+      )} />
+      
+      <Route path="/:groupId/browser" component={({ params }) => (
+        <div className="flex h-screen bg-browser-bg">
+          <GroupInfoSidebar groupId={params?.groupId} />
+          <main className="flex-1 overflow-hidden">
+            <Browser />
+          </main>
+        </div>
+      )} />
+    </Switch>
   );
 }
 

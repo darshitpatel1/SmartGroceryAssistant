@@ -1,10 +1,16 @@
 import { useState, useEffect } from 'react';
+import { useUserData } from '@/hooks/useUserData';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useToast } from '@/hooks/use-toast';
 import { ShoppingCart, Heart, Star, MapPin, Zap, Plus, Trash2, Edit3, CheckCircle, Crown } from 'lucide-react';
+
+interface WishlistCanvasProps {
+  groupId?: string;
+}
 
 interface GroceryItem {
   id: string;
@@ -36,12 +42,38 @@ const defaultGroceryList: GroceryItem[] = [
   { id: '8', name: 'Apples', selected: false },
 ];
 
-export function WishlistCanvas() {
+export function WishlistCanvas({ groupId }: WishlistCanvasProps) {
+  const { saveDeal } = useUserData();
+  const { toast } = useToast();
   const [postalCode, setPostalCode] = useState('M5V 3A1');
   const [groceryList, setGroceryList] = useState<GroceryItem[]>([]);
   const [newItem, setNewItem] = useState('');
   const [currentDeals, setCurrentDeals] = useState<Deal[]>([]);
   const [isEditingPostal, setIsEditingPostal] = useState(false);
+
+  const handleSaveDeal = (deal: Deal) => {
+    const savingsAmount = parseFloat(deal.savings?.replace(/[^0-9.]/g, '') || '0');
+    
+    saveDeal({
+      item: deal.item,
+      brand: deal.brand,
+      store: deal.store,
+      price: deal.price,
+      packageSize: deal.packageSize,
+      savings: deal.savings,
+      savingsAmount,
+      confidence: deal.confidence,
+      isBest: deal.isBest,
+      savedBy: 'You'
+    }, groupId);
+
+    // Show success toast
+    toast({
+      title: "Deal Saved!",
+      description: `${deal.brand ? `${deal.brand} ` : ''}${deal.item} at ${deal.store} has been saved${groupId ? ' to your group' : ''}.`,
+      duration: 3000,
+    });
+  };
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -319,7 +351,10 @@ export function WishlistCanvas() {
                                   {bestDeal.confidence}% match
                                 </Badge>
                               </div>
-                              <Button className="bg-green-600 hover:bg-green-700 text-white text-lg px-6 py-3">
+                              <Button 
+                                className="bg-green-600 hover:bg-green-700 text-white text-lg px-6 py-3"
+                                onClick={() => handleSaveDeal(bestDeal)}
+                              >
                                 <Heart className="w-5 h-5 mr-2" />
                                 Save This Deal
                               </Button>
@@ -362,7 +397,10 @@ export function WishlistCanvas() {
                           </div>
                           <div className="text-right">
                             <div className="text-2xl font-bold text-white mb-2">{deal.price}</div>
-                            <Button className="bg-green-600 hover:bg-green-700 text-white">
+                            <Button 
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                              onClick={() => handleSaveDeal(deal)}
+                            >
                               <Heart className="w-4 h-4 mr-2" />
                               Save Deal
                             </Button>

@@ -999,6 +999,129 @@ export async function registerRoutes(app: Express, httpServer: Server): Promise<
           throw new Error("Page or browser connection lost during navigation");
         }
 
+        // Handle cookie consent and popups immediately after navigation
+        console.log("performFlippSearch: Handling cookie consent and popups");
+        
+        // Wait a moment for popups to appear
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Try to close cookie consent popup
+        const popupClosed = await searchPage.evaluate(() => {
+          console.log('Checking for cookie consent popup...');
+          
+          // Look for "Accept All" or similar buttons
+          const acceptButtons = Array.from(document.querySelectorAll('button, [role="button"], a'));
+          
+          for (const btn of acceptButtons) {
+            const element = btn as HTMLElement;
+            const text = element.textContent?.trim().toLowerCase() || '';
+            const ariaLabel = element.getAttribute('aria-label')?.toLowerCase() || '';
+            
+            if ((text.includes('accept all') || text.includes('accept all cookies') || 
+                 text === 'accept all' || ariaLabel.includes('accept all') ||
+                 element.id?.toLowerCase().includes('accept')) &&
+                element.offsetParent !== null) {
+              
+              console.log('Found and clicking Accept All button:', text || ariaLabel || element.id);
+              element.click();
+              element.dispatchEvent(new Event('click', { bubbles: true }));
+              element.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+              element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+              return true;
+            }
+          }
+          
+          // Also try to remove the popup directly if clicking didn't work
+          const popupSelectors = [
+            '[data-testid*="cookie"]',
+            '[data-testid*="consent"]', 
+            '[data-testid*="privacy"]',
+            '.cookie-banner',
+            '.privacy-banner',
+            '.consent-banner',
+            '[role="dialog"]',
+            '[aria-label*="privacy" i]',
+            '[aria-label*="cookie" i]'
+          ];
+          
+          let removed = false;
+          popupSelectors.forEach(selector => {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(el => {
+              const element = el as HTMLElement;
+              const text = element.textContent?.toLowerCase() || '';
+              if (text.includes('privacy') || text.includes('cookie') || text.includes('consent')) {
+                console.log('Removing popup element:', selector);
+                element.style.display = 'none';
+                element.remove();
+                removed = true;
+              }
+            });
+          });
+          
+          return removed;
+        });
+        
+        console.log('performFlippSearch: Cookie popup handling result:', popupClosed);
+        
+        // Set cookie consent values to prevent future popups
+        await searchPage.evaluate(() => {
+          console.log('Setting cookie consent values...');
+          
+          // Set cookies to indicate consent was given
+          const consentCookies = [
+            'flipp_cookie_consent=true',
+            'cookie_consent=accepted', 
+            'cookies_accepted=true',
+            'gdpr_consent=true',
+            'privacy_consent=accepted',
+            'cookie_banner_dismissed=true',
+            'cookieConsent=true',
+            'consent_given=true',
+            'privacy_banner_closed=true'
+          ];
+          
+          const expireDate = new Date();
+          expireDate.setFullYear(expireDate.getFullYear() + 1); // 1 year from now
+          
+          consentCookies.forEach(cookieStr => {
+            const [name, value] = cookieStr.split('=');
+            document.cookie = `${name}=${value}; path=/; expires=${expireDate.toUTCString()}; SameSite=Lax; Secure`;
+            console.log(`Set cookie: ${name}=${value}`);
+          });
+          
+          // Also set in localStorage for good measure
+          try {
+            const localStorageValues = {
+              'cookie_consent': 'accepted',
+              'privacy_consent': 'accepted', 
+              'gdpr_consent': 'true',
+              'cookieConsent': 'accepted',
+              'flipp_cookie_consent': 'true',
+              'consent_timestamp': Date.now().toString(),
+              'privacy_banner_dismissed': 'true'
+            };
+            
+            Object.entries(localStorageValues).forEach(([key, value]) => {
+              localStorage.setItem(key, value);
+              console.log(`Set localStorage: ${key}=${value}`);
+            });
+            
+            // Also try sessionStorage
+            Object.entries(localStorageValues).forEach(([key, value]) => {
+              sessionStorage.setItem(key, value);
+            });
+            
+          } catch (storageError) {
+            console.log('Storage not available:', storageError);
+          }
+          
+          console.log('Cookie consent values set successfully');
+        });
+        
+        // Wait another moment for the popup removal and cookie setting to take effect
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
         // Get navigation state and emit proper events
         const canGoBack = await searchPage.evaluate(() => window.history.length > 1);
         const currentUrl = searchPage.url();
