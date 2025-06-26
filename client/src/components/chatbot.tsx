@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, MessageCircle, X, Bot, User } from "lucide-react";
+import { Send, MessageCircle, X, Bot, User, Type, Focus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useSocket } from "@/hooks/use-socket";
 
 interface Message {
   id: string;
@@ -16,6 +17,7 @@ interface ChatbotProps {
 }
 
 export function Chatbot({ className }: ChatbotProps) {
+  const { type } = useSocket();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -27,6 +29,7 @@ export function Chatbot({ className }: ChatbotProps) {
   const [inputValue, setInputValue] = useState("");
   const [isMinimized, setIsMinimized] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [typeMode, setTypeMode] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -66,6 +69,20 @@ export function Chatbot({ className }: ChatbotProps) {
 
   const handleSend = () => {
     if (!inputValue.trim()) return;
+
+    if (typeMode) {
+      // Send text directly to browser
+      type(inputValue);
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        text: `Typed: "${inputValue}"`,
+        sender: 'user',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, userMessage]);
+      setInputValue("");
+      return;
+    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
