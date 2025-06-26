@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import puppeteer, { type Browser, type Page, type CDPSession } from "puppeteer";
+import { AIShoppingAssistant, ShoppingItem } from './ai-shopping';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
