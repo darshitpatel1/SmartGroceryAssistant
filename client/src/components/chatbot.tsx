@@ -125,9 +125,18 @@ export function Chatbot({ className }: ChatbotProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Bot className="w-5 h-5 text-browser-primary" />
-            <h3 className="font-semibold text-browser-text">Chat Assistant</h3>
+            <h3 className="font-semibold text-browser-text">Browser Assistant</h3>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setTypeMode(!typeMode)}
+              className={`h-8 w-8 p-0 hover:bg-browser-border ${typeMode ? 'bg-browser-primary text-white' : ''}`}
+              title={typeMode ? "Chat mode" : "Type mode"}
+            >
+              <Type className="w-4 h-4" />
+            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -139,7 +148,7 @@ export function Chatbot({ className }: ChatbotProps) {
           </div>
         </div>
         <p className="text-xs text-browser-text-secondary mt-1">
-          Ask me anything about browsing!
+          {typeMode ? "Type mode: Text will be sent directly to browser" : "Chat mode: Ask me anything about browsing!"}
         </p>
       </div>
 
