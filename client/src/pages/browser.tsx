@@ -128,7 +128,7 @@ export default function Browser() {
       
       {/* Right side grocery canvas - wider */}
       <div className="flex-1">
-        <GroceryCanvas />
+        <WishlistCanvas />
       </div>
     </div>
   );
