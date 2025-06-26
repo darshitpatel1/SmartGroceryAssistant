@@ -38,10 +38,36 @@ const defaultGroceryList: GroceryItem[] = [
 
 export function WishlistCanvas() {
   const [postalCode, setPostalCode] = useState('M5V 3A1');
-  const [groceryList, setGroceryList] = useState<GroceryItem[]>(defaultGroceryList);
+  const [groceryList, setGroceryList] = useState<GroceryItem[]>([]);
   const [newItem, setNewItem] = useState('');
   const [currentDeals, setCurrentDeals] = useState<Deal[]>([]);
   const [isEditingPostal, setIsEditingPostal] = useState(false);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    const savedPostalCode = localStorage.getItem('postalCode');
+    const savedGroceryList = localStorage.getItem('groceryList');
+    
+    if (savedPostalCode) {
+      setPostalCode(savedPostalCode);
+    }
+    
+    if (savedGroceryList) {
+      setGroceryList(JSON.parse(savedGroceryList));
+    } else {
+      setGroceryList(defaultGroceryList);
+    }
+  }, []);
+
+  // Save to localStorage when grocery list changes
+  useEffect(() => {
+    localStorage.setItem('groceryList', JSON.stringify(groceryList));
+  }, [groceryList]);
+
+  // Save to localStorage when postal code changes
+  useEffect(() => {
+    localStorage.setItem('postalCode', postalCode);
+  }, [postalCode]);
 
   // Mock deals for demonstration - these match the real Flipp.com results from your screenshot
   const mockDeals: Deal[] = [
@@ -103,6 +129,19 @@ export function WishlistCanvas() {
     return `${postalCode} ${selectedItems}`;
   };
 
+  // Function to receive deals from chatbot
+  const updateDeals = (newDeals: Deal[]) => {
+    setCurrentDeals(newDeals);
+  };
+
+  // Expose function to window for chatbot to call
+  useEffect(() => {
+    (window as any).updateGroceryDeals = updateDeals;
+    return () => {
+      delete (window as any).updateGroceryDeals;
+    };
+  }, []);
+
   const selectedItems = groceryList.filter(item => item.selected);
 
   return (
@@ -121,59 +160,40 @@ export function WishlistCanvas() {
           </div>
         </div>
 
-        {/* Postal Code Section */}
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-3">
-            <MapPin className="w-5 h-5 text-blue-400" />
-            <span className="text-lg font-medium text-white">Your Location</span>
+        {/* Postal Code Section - Smaller */}
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-2">
+            <MapPin className="w-4 h-4 text-blue-400" />
+            <span className="text-sm font-medium text-white">Your Location</span>
           </div>
           {isEditingPostal ? (
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <Input
                 value={postalCode}
                 onChange={(e) => setPostalCode(e.target.value.toUpperCase())}
-                className="bg-gray-900 border-gray-700 text-white text-lg"
+                className="bg-gray-900 border-gray-700 text-white text-sm h-8"
                 placeholder="M5V 3A1"
               />
               <Button
                 onClick={() => setIsEditingPostal(false)}
-                className="bg-green-600 hover:bg-green-700"
+                size="sm"
+                className="bg-green-600 hover:bg-green-700 h-8 px-2"
               >
-                <CheckCircle className="w-5 h-5" />
+                <CheckCircle className="w-4 h-4" />
               </Button>
             </div>
           ) : (
             <div 
               onClick={() => setIsEditingPostal(true)}
-              className="flex items-center gap-3 bg-gray-900 px-4 py-3 rounded-lg cursor-pointer hover:bg-gray-800 transition-colors"
+              className="flex items-center gap-2 bg-gray-900 px-3 py-2 rounded-md cursor-pointer hover:bg-gray-800 transition-colors w-fit"
             >
-              <Badge variant="outline" className="border-blue-500 text-blue-400 text-lg px-3 py-1">
+              <Badge variant="outline" className="border-blue-500 text-blue-400 text-sm px-2 py-1">
                 {postalCode}
               </Badge>
-              <Edit3 className="w-4 h-4 text-gray-400" />
-              <span className="text-sm text-gray-400">Click to edit</span>
+              <Edit3 className="w-3 h-3 text-gray-400" />
+              <span className="text-xs text-gray-400">Click to edit</span>
             </div>
           )}
-        </div>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-2 gap-4">
-          <Button
-            onClick={() => navigator.clipboard.writeText(getQuickList())}
-            className="bg-blue-600 hover:bg-blue-700 h-12 text-base"
-            disabled={selectedItems.length === 0}
-          >
-            <MapPin className="w-5 h-5 mr-2" />
-            Postal Code
-          </Button>
-          <Button
-            onClick={() => setCurrentDeals(mockDeals)}
-            className="bg-green-600 hover:bg-green-700 h-12 text-base"
-            disabled={selectedItems.length === 0}
-          >
-            <ShoppingCart className="w-5 h-5 mr-2" />
-            Quick List ({selectedItems.length})
-          </Button>
         </div>
       </div>
 
@@ -254,7 +274,7 @@ export function WishlistCanvas() {
             <div className="text-center py-16 text-gray-500">
               <ShoppingCart className="w-20 h-20 mx-auto mb-6 opacity-30" />
               <p className="text-xl mb-3">No deals to show yet</p>
-              <p className="text-base">Select items from your grocery list and click "Quick List" to find the best prices</p>
+              <p className="text-base">Select items from your grocery list and use the chatbot to find the best prices</p>
             </div>
           ) : (
             <ScrollArea className="h-[600px]">

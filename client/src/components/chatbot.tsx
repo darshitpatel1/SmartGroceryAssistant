@@ -358,9 +358,25 @@ export function Chatbot({ className }: ChatbotProps) {
           </Button>
           <Button
             onClick={() => {
-              // This will be connected to grocery canvas selected items
-              const quickList = "M5V 3A1 milk bread eggs"; // Placeholder for now
-              setInputValue(quickList);
+              // Get selected items from localStorage
+              const savedGroceryList = localStorage.getItem('groceryList');
+              const savedPostalCode = localStorage.getItem('postalCode') || 'M5V 3A1';
+              
+              if (savedGroceryList) {
+                const groceryList = JSON.parse(savedGroceryList);
+                const selectedItems = groceryList
+                  .filter((item: any) => item.selected)
+                  .map((item: any) => item.name)
+                  .join(' ');
+                
+                if (selectedItems) {
+                  setInputValue(`${savedPostalCode} ${selectedItems}`);
+                } else {
+                  setInputValue(`${savedPostalCode} `);
+                }
+              } else {
+                setInputValue(`${savedPostalCode} `);
+              }
             }}
             variant="outline"
             size="sm"
