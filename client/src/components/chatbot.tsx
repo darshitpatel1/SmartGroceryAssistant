@@ -12,7 +12,7 @@ interface Message {
   text: string;
   sender: 'user' | 'bot';
   timestamp: Date;
-  type?: 'info' | 'error' | 'deal' | 'progress';
+  type?: 'info' | 'error' | 'deal' | 'progress' | 'analysis' | 'success';
   data?: any;
 }
 
