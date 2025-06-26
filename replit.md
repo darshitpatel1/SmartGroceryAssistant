@@ -89,8 +89,16 @@ This project is a real-time web browser interface that allows users to control a
 ## Changelog
 - June 25, 2025. Initial setup
 - June 26, 2025. Enhanced browser interaction system with native click handling, fixed input typing system, and proper dropdown support
+- June 26, 2025. Added navigation sidebar and AI chatbot integration
 
 ## Recent Changes
+
+### Navigation and Chatbot Integration (June 26, 2025)
+- **Added Navigation Sidebar**: Left sidebar with collapsible navigation including Home, Browser, and Settings pages
+- **Integrated AI Chatbot**: Right-side chatbot interface in browser view with messaging capabilities
+- **New Page Structure**: Created Home page with feature overview and Settings page with configuration options
+- **Consistent Theme**: Applied browser theme colors throughout all components for unified appearance
+- **Responsive Layout**: Three-panel layout with sidebar, main content, and chatbot panel
 
 ### Enhanced Browser Interaction System (June 26, 2025)
 - **Fixed Input Typing**: Characters now append properly instead of overwriting, eliminating the "shaking" behavior
@@ -101,6 +109,11 @@ This project is a real-time web browser interface that allows users to control a
 - **Cursor Positioning**: Proper cursor placement in input fields at click position or end of text
 
 ### Technical Implementation
+- Added AppSidebar component with navigation and collapsible functionality
+- Created Chatbot component with message history, typing indicators, and minimization
+- Updated main App.tsx layout to use three-panel structure (sidebar + main + chatbot)
+- Created Home and Settings pages with feature descriptions and configuration options
+- Applied consistent browser theme styling across all new components
 - Replaced BrowserManager class with inline Puppeteer integration in routes.ts
 - Enhanced click handler with element type detection and appropriate timing
 - Fixed typing system to use cursor position and text insertion instead of value replacement

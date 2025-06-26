@@ -136,7 +136,7 @@ export default function Browser() {
   return (
     <div className="h-full flex flex-col bg-browser-bg text-browser-text">
       {/* Navigation Bar */}
-      <div className="p-4 bg-gray-800 border-b border-gray-700">
+      <div className="p-4 bg-browser-surface border-b border-browser-border">
         {/* Combined Navigation and URL Bar */}
         <form onSubmit={handleBrowse} className="flex items-center gap-2">
           {/* Navigation Buttons */}
@@ -144,7 +144,7 @@ export default function Browser() {
             type="button"
             onClick={handleBack}
             disabled={!canGoBack || !connected}
-            className="p-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-500 rounded transition-colors"
+            className="p-2 bg-browser-border hover:bg-browser-text-secondary hover:text-browser-bg disabled:bg-browser-bg disabled:text-browser-text-secondary rounded transition-colors"
             title="Go Back"
           >
             ←
@@ -153,7 +153,7 @@ export default function Browser() {
             type="button"
             onClick={handleForward}
             disabled={!canGoForward || !connected}
-            className="p-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-500 rounded transition-colors"
+            className="p-2 bg-browser-border hover:bg-browser-text-secondary hover:text-browser-bg disabled:bg-browser-bg disabled:text-browser-text-secondary rounded transition-colors"
             title="Go Forward"
           >
             →
@@ -162,7 +162,7 @@ export default function Browser() {
             type="button"
             onClick={handleRefresh}
             disabled={!connected}
-            className="p-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-500 rounded transition-colors"
+            className="p-2 bg-browser-border hover:bg-browser-text-secondary hover:text-browser-bg disabled:bg-browser-bg disabled:text-browser-text-secondary rounded transition-colors"
             title="Refresh Page"
           >
             ↻
@@ -172,14 +172,14 @@ export default function Browser() {
           <input
             type="url"
             placeholder="Enter URL (e.g., https://google.com)"
-            className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 px-3 py-2 bg-browser-bg border border-browser-border rounded text-browser-text placeholder-browser-text-secondary focus:outline-none focus:ring-2 focus:ring-browser-primary"
             value={currentUrl || url}
             onChange={(e) => setUrl(e.target.value)}
           />
           <button
             type="submit"
             disabled={!connected}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white font-medium transition-colors"
+            className="px-4 py-2 bg-browser-primary hover:bg-browser-primary/90 disabled:bg-browser-border disabled:cursor-not-allowed rounded text-white font-medium transition-colors"
           >
             Go
           </button>
@@ -188,15 +188,15 @@ export default function Browser() {
         {/* Loading Progress Bar */}
         {isLoading && (
           <div className="mt-2">
-            <div className="w-full bg-gray-700 rounded-full h-1">
-              <div className="bg-blue-500 h-1 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+            <div className="w-full bg-browser-border rounded-full h-1">
+              <div className="bg-browser-primary h-1 rounded-full animate-pulse" style={{ width: '60%' }}></div>
             </div>
           </div>
         )}
         
         {/* Status */}
         <div className="mt-2 text-sm">
-          Status: <span className={connected ? 'text-green-400' : 'text-red-400'}>
+          Status: <span className={connected ? 'text-browser-success' : 'text-browser-error'}>
             {connected ? (isLoading ? 'Loading...' : 'Connected') : 'Disconnected'}
           </span>
         </div>
@@ -206,7 +206,7 @@ export default function Browser() {
       <div className="flex-1 flex">
         {/* Main Viewport */}
         <div className="flex-1 p-4">
-          <div className="w-full h-full bg-gray-800 rounded border border-gray-700 overflow-hidden relative">
+          <div className="w-full h-full bg-browser-surface rounded border border-browser-border overflow-hidden relative">
             {frame ? (
               <div 
                 ref={viewportRef}
@@ -224,41 +224,41 @@ export default function Browser() {
                 />
               </div>
             ) : (
-              <div className="h-full flex items-center justify-center text-gray-400">
+              <div className="h-full flex items-center justify-center text-browser-text-secondary">
                 {connected ? 'Enter a URL to start browsing' : 'Connecting...'}
               </div>
             )}
             
             {/* Zoom Controls */}
             {frame && (
-              <div className="absolute top-4 right-4 flex gap-2 bg-black bg-opacity-70 rounded p-2">
+              <div className="absolute top-4 right-4 flex gap-2 bg-browser-bg/90 rounded p-2 border border-browser-border">
                 <button
                   onClick={() => handleZoomChange(0.5)}
-                  className="px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded text-xs text-white"
+                  className="px-2 py-1 bg-browser-border hover:bg-browser-text-secondary hover:text-browser-bg rounded text-xs text-browser-text"
                 >
                   50%
                 </button>
                 <button
                   onClick={() => handleZoomChange(0.75)}
-                  className="px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded text-xs text-white"
+                  className="px-2 py-1 bg-browser-border hover:bg-browser-text-secondary hover:text-browser-bg rounded text-xs text-browser-text"
                 >
                   75%
                 </button>
                 <button
                   onClick={() => handleZoomChange(1)}
-                  className="px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded text-xs text-white"
+                  className="px-2 py-1 bg-browser-border hover:bg-browser-text-secondary hover:text-browser-bg rounded text-xs text-browser-text"
                 >
                   100%
                 </button>
                 <button
                   onClick={() => handleZoomChange(1.25)}
-                  className="px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded text-xs text-white"
+                  className="px-2 py-1 bg-browser-border hover:bg-browser-text-secondary hover:text-browser-bg rounded text-xs text-browser-text"
                 >
                   125%
                 </button>
                 <button
                   onClick={() => handleZoomChange(1.5)}
-                  className="px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded text-xs text-white"
+                  className="px-2 py-1 bg-browser-border hover:bg-browser-text-secondary hover:text-browser-bg rounded text-xs text-browser-text"
                 >
                   150%
                 </button>
