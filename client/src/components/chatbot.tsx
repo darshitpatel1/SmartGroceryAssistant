@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, MessageCircle, X, Bot, User, Type, Focus, MousePointer, Keyboard } from "lucide-react";
+import { Send, MessageCircle, X, Bot, User, Type, ShoppingCart, MapPin, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useSocket } from "@/hooks/use-socket";
 
 interface Message {
@@ -10,6 +12,17 @@ interface Message {
   text: string;
   sender: 'user' | 'bot';
   timestamp: Date;
+  type?: 'text' | 'info' | 'error' | 'analysis' | 'deal' | 'progress' | 'complete';
+  data?: any;
+}
+
+interface PriceAnalysis {
+  item: string;
+  cheapestStore: string;
+  price: string;
+  savings?: string;
+  points?: string;
+  confidence: number;
 }
 
 interface ChatbotProps {
@@ -17,19 +30,23 @@ interface ChatbotProps {
 }
 
 export function Chatbot({ className }: ChatbotProps) {
-  const { type, focusInput, connected } = useSocket();
+  const { type, focusInput, connected, socket } = useSocket();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: "Hello! I'm your browser assistant. I can help you navigate websites, answer questions, or provide assistance while browsing.",
+      text: "Hello! I'm your AI shopping assistant. I can help you find the best deals by comparing prices across different stores. Just tell me your postal code and what items you want to buy!",
       sender: 'bot',
-      timestamp: new Date()
+      timestamp: new Date(),
+      type: 'text'
     }
   ]);
   const [inputValue, setInputValue] = useState("");
   const [isMinimized, setIsMinimized] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [typeMode, setTypeMode] = useState(false);
+  const [shoppingMode, setShoppingMode] = useState(true);
+  const [postalCode, setPostalCode] = useState("");
+  const [shoppingList, setShoppingList] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -40,6 +57,31 @@ export function Chatbot({ className }: ChatbotProps) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Listen for AI responses
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleAIResponse = (data: { response: string; type: string; data?: any }) => {
+      const newMessage: Message = {
+        id: Date.now().toString(),
+        text: data.response,
+        sender: 'bot',
+        timestamp: new Date(),
+        type: data.type as any,
+        data: data.data
+      };
+      
+      setMessages(prev => [...prev, newMessage]);
+      setIsTyping(false);
+    };
+
+    socket.on("ai_response", handleAIResponse);
+
+    return () => {
+      socket.off("ai_response", handleAIResponse);
+    };
+  }, [socket]);
 
   const simulateBotResponse = (userMessage: string) => {
     setIsTyping(true);
@@ -77,7 +119,8 @@ export function Chatbot({ className }: ChatbotProps) {
         id: Date.now().toString(),
         text: `Typed: "${inputValue}"`,
         sender: 'user',
-        timestamp: new Date()
+        timestamp: new Date(),
+        type: 'text'
       };
       setMessages(prev => [...prev, userMessage]);
       setInputValue("");
@@ -88,14 +131,21 @@ export function Chatbot({ className }: ChatbotProps) {
       id: Date.now().toString(),
       text: inputValue,
       sender: 'user',
-      timestamp: new Date()
+      timestamp: new Date(),
+      type: 'text'
     };
 
     setMessages(prev => [...prev, userMessage]);
     setInputValue("");
     
-    // Simulate bot response
-    simulateBotResponse(inputValue);
+    // Send to AI assistant if in shopping mode
+    if (shoppingMode && socket) {
+      setIsTyping(true);
+      socket.emit("ai_chat", { message: inputValue, type: 'message' });
+    } else {
+      // Simulate bot response for regular mode
+      simulateBotResponse(inputValue);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -103,6 +153,94 @@ export function Chatbot({ className }: ChatbotProps) {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const handleStartShopping = () => {
+    if (!socket) return;
+    setIsTyping(true);
+    socket.emit("ai_chat", { message: "Start shopping session", type: 'start' });
+  };
+
+  const handlePriceSearch = () => {
+    if (!socket || !postalCode.trim()) return;
+    const items = shoppingList.split('\n').filter(item => item.trim());
+    if (items.length === 0) return;
+
+    setIsTyping(true);
+    if (items.length === 1) {
+      socket.emit("start_price_search", { item: items[0].trim(), postalCode: postalCode.trim() });
+    } else {
+      socket.emit("process_shopping_list", { items, postalCode: postalCode.trim() });
+    }
+  };
+
+  const renderMessage = (message: Message) => {
+    const isUser = message.sender === 'user';
+    
+    if (message.type === 'deal' && message.data) {
+      return (
+        <Card className="max-w-[80%] bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <ShoppingCart className="w-4 h-4 text-green-600" />
+              <Badge variant="secondary" className="bg-green-100 text-green-800">Best Deal</Badge>
+            </div>
+            <h4 className="font-semibold text-green-800 dark:text-green-200">{message.data.item}</h4>
+            <p className="text-sm text-green-700 dark:text-green-300">
+              <span className="font-bold">{message.data.price}</span> at {message.data.cheapestStore}
+            </p>
+            {message.data.savings && (
+              <p className="text-xs text-green-600 dark:text-green-400">{message.data.savings}</p>
+            )}
+            {message.data.points && (
+              <p className="text-xs text-green-600 dark:text-green-400">{message.data.points}</p>
+            )}
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (message.type === 'progress' && message.data) {
+      return (
+        <div className="max-w-[80%] rounded-lg p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+          <div className="flex items-center gap-2 mb-2">
+            <Search className="w-4 h-4 text-blue-600" />
+            <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+              Searching {message.data.current}/{message.data.total}
+            </span>
+          </div>
+          <p className="text-sm text-blue-800 dark:text-blue-200">{message.data.item}</p>
+          <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2 mt-2">
+            <div 
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${(message.data.current / message.data.total) * 100}%` }}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className={`max-w-[80%] rounded-lg p-3 ${
+        isUser 
+          ? 'bg-browser-primary text-white ml-auto' 
+          : message.type === 'error'
+          ? 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200'
+          : message.type === 'info'
+          ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200'
+          : 'bg-browser-border text-browser-text'
+      }`}>
+        <div className="flex items-start gap-2">
+          {!isUser && <Bot className="w-4 h-4 text-browser-primary mt-0.5 flex-shrink-0" />}
+          <div className="flex-1">
+            <p className="text-sm break-words">{message.text}</p>
+            <span className="text-xs opacity-70 mt-1 block">
+              {message.timestamp.toLocaleTimeString()}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   if (isMinimized) {
