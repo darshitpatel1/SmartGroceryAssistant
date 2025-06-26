@@ -10,6 +10,8 @@ interface UseSocketReturn {
   canGoForward: boolean;
   browse: (url: string) => void;
   click: (xNorm: number, yNorm: number) => void;
+  doubleClick: (xNorm: number, yNorm: number) => void;
+  focusInput: () => void;
   type: (text: string) => void;
   scroll: (deltaY: number) => void;
   pressKey: (key: string, modifiers?: string[]) => void;
