@@ -883,6 +883,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // Helper function to perform Flipp search and analysis
+    async function performFlippSearch(item: string, postalCode: string) {
+      if (!page || !browser || !aiAssistant) return;
+
+      try {
+        // Navigate to Flipp.com with the search
+        const flippUrl = `https://flipp.com/search/${encodeURIComponent(item)}?postal_code=${postalCode}`;
+        console.log("Searching Flipp for:", item, "at", flippUrl);
+        
+        await page.goto(flippUrl, { 
+          waitUntil: 'networkidle2',
+          timeout: 30000 
+        });
+
+        // Wait for page to load and content to appear
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        // Take screenshot for AI analysis
+        const screenshot = await page.screenshot({ 
+          encoding: 'base64',
+          type: 'jpeg',
+          quality: 80
+        });
+
+        // Use AI to analyze the screenshot
+        const analysis = await aiAssistant.analyzeFlippScreenshots([
+          { item, screenshot: screenshot as string }
+        ]);
+
+        // Send deal information back to client
+        if (analysis.analyses && analysis.analyses.length > 0) {
+          const bestDeal = analysis.analyses[0];
+          socket.emit("deal_found", {
+            item: bestDeal.item,
+            cheapestStore: bestDeal.cheapestStore,
+            price: bestDeal.price,
+            savings: bestDeal.savings,
+            points: bestDeal.points,
+            confidence: bestDeal.confidence
+          });
+        }
+
+      } catch (error) {
+        console.error("Flipp search error for", item, ":", error);
+        socket.emit("search_error", { 
+          message: `Sorry, I had trouble searching for ${item}. Please try again.` 
+        });
+      }
+    }
+
     // AI Shopping Assistant Events
     socket.on("ai_chat", async ({ message, type }: { message: string; type?: 'start' | 'message' }) => {
       try {
@@ -890,29 +940,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
           aiAssistant = new AIShoppingAssistant();
         }
 
-        let response: string;
-        if (type === 'start') {
-          response = await aiAssistant.startShoppingSession();
-        } else {
-          response = await aiAssistant.processUserMessage(message);
-        }
-
-        socket.emit("ai_response", { response, type: 'text' });
-
-        // Check if user provided postal code and shopping list
+        // Extract postal code and shopping items from message
         const postalCode = aiAssistant.extractPostalCode(message);
-        if (postalCode) {
+        const shoppingItems = aiAssistant.parseShoppingList(message);
+        
+        if (postalCode && shoppingItems.length > 0) {
+          // User provided both postal code and items - start automatic search
           socket.emit("ai_response", { 
-            response: `Great! I detected postal code: ${postalCode}`, 
-            type: 'info',
-            data: { postalCode }
+            message: `Great! I detected postal code ${postalCode} and ${shoppingItems.length} item(s). Let me find the best prices for you...`, 
+            type: 'info' 
           });
+
+          // Start the price search workflow
+          for (let i = 0; i < shoppingItems.length; i++) {
+            const item = shoppingItems[i];
+            socket.emit("price_update", { 
+              item: item.name, 
+              current: i + 1, 
+              total: shoppingItems.length 
+            });
+
+            await performFlippSearch(item.name, postalCode);
+            
+            // Small delay between searches
+            if (i < shoppingItems.length - 1) {
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+          }
+          
+          socket.emit("search_complete", { 
+            summary: `Price search complete! I found deals for ${shoppingItems.length} item(s).`,
+            nextSteps: "Feel free to ask me about specific stores or if you need prices for more items."
+          });
+          
+        } else if (postalCode) {
+          socket.emit("ai_response", { 
+            message: `Perfect! I have your postal code: ${postalCode}. Now please tell me what items you're looking for (like "milk", "bread", "eggs").`, 
+            type: 'info' 
+          });
+        } else if (shoppingItems.length > 0) {
+          socket.emit("ai_response", { 
+            message: `I see you want: ${shoppingItems.map(item => item.name).join(', ')}. Could you also provide your postal code so I can find local store prices?`, 
+            type: 'info' 
+          });
+        } else {
+          // Regular AI response for general questions
+          let response: string;
+          if (type === 'start') {
+            response = await aiAssistant.startShoppingSession();
+          } else {
+            response = await aiAssistant.processUserMessage(message);
+          }
+          socket.emit("ai_response", { message: response, type: 'info' });
         }
 
       } catch (error) {
         console.error("AI chat error:", error);
         socket.emit("ai_response", { 
-          response: "Sorry, I'm having trouble processing your request right now.", 
+          message: "I'm having trouble right now. Please try again.", 
           type: 'error' 
         });
       }
