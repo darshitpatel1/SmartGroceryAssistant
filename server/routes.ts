@@ -900,13 +900,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Navigate to Flipp URL (this will show in the browser viewport)
         socket.emit("loading", { status: "starting" });
+        
+        // Navigate with proper event handling
         await page.goto(flippUrl, { 
           waitUntil: 'networkidle2',
           timeout: 30000 
         });
 
-        // Emit URL update so it shows in browser
-        socket.emit("url_update", { url: flippUrl });
+        // Get navigation state and emit proper events
+        const canGoBack = await page.evaluate(() => window.history.length > 1);
+        const currentUrl = page.url();
+        
+        // Emit all navigation events that the frontend expects
+        socket.emit("url_update", { url: currentUrl });
+        socket.emit("navigation_complete", { 
+          url: currentUrl, 
+          canGoBack, 
+          canGoForward: false 
+        });
+        socket.emit("url_changed", { 
+          url: currentUrl, 
+          canGoBack, 
+          canGoForward: false 
+        });
         socket.emit("loading", { status: "complete" });
 
         // Wait for page to load and content to appear
@@ -987,6 +1003,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Extract postal code and shopping items from message
         const postalCode = aiAssistant.extractPostalCode(message);
         const shoppingItems = aiAssistant.parseShoppingList(message);
+        
+        console.log(`AI Chat Debug - Message: "${message}"`);
+        console.log(`AI Chat Debug - Extracted postal code: "${postalCode}"`);
+        console.log(`AI Chat Debug - Found ${shoppingItems.length} items:`, shoppingItems.map(item => item.name));
         
         if (postalCode && shoppingItems.length > 0) {
           // User provided both postal code and items - start automatic search

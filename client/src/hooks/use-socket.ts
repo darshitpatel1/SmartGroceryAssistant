@@ -94,6 +94,12 @@ export function useSocket(): UseSocketReturn {
       setIsLoading(status === 'loading' || status === 'starting');
     });
 
+    // Handle URL updates from AI assistant navigation
+    socket.on('url_update', ({ url }: { url: string }) => {
+      console.log('AI navigation to:', url);
+      setCurrentUrl(url);
+    });
+
     socket.on('error', ({ message }: { message: string }) => {
       console.error('Socket error:', message);
       setIsLoading(false);

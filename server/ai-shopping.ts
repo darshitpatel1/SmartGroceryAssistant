@@ -141,18 +141,69 @@ Always respond in a friendly, helpful manner and ask clarifying questions when n
   }
 
   parseShoppingList(userInput: string): ShoppingItem[] {
-    // Simple parsing - can be enhanced with AI if needed
-    const lines = userInput.split('\n').filter(line => line.trim());
-    return lines.map(line => {
-      const trimmed = line.trim().replace(/^[-*•]\s*/, '');
-      return { name: trimmed };
-    });
+    const input = userInput.toLowerCase();
+    
+    // Common food items and groceries
+    const foodItems = [
+      'milk', 'bread', 'eggs', 'butter', 'cheese', 'yogurt', 'chicken', 'beef', 'pork', 'fish',
+      'salmon', 'tuna', 'rice', 'pasta', 'cereal', 'oats', 'flour', 'sugar', 'salt', 'pepper',
+      'onions', 'potatoes', 'carrots', 'tomatoes', 'lettuce', 'spinach', 'broccoli', 'bananas',
+      'apples', 'oranges', 'strawberries', 'grapes', 'lemons', 'avocado', 'cucumber', 'peppers',
+      'garlic', 'ginger', 'herbs', 'spices', 'oil', 'vinegar', 'sauce', 'ketchup', 'mustard',
+      'mayo', 'jam', 'honey', 'nuts', 'almonds', 'walnuts', 'crackers', 'cookies', 'chocolate',
+      'ice cream', 'frozen', 'pizza', 'soup', 'beans', 'lentils', 'quinoa', 'coffee', 'tea',
+      'juice', 'water', 'soda', 'beer', 'wine', 'detergent', 'soap', 'shampoo', 'toothpaste',
+      'tissue', 'toilet paper', 'paper towels', 'cleaning', 'diapers', 'formula', 'cat food',
+      'dog food', 'treats', 'litter'
+    ];
+    
+    const foundItems: ShoppingItem[] = [];
+    
+    // Look for food items in the input
+    for (const item of foodItems) {
+      if (input.includes(item)) {
+        // Extract quantity if present
+        const quantityRegex = new RegExp(`(\\d+)\\s*(?:x\\s*)?${item}|${item}\\s*(?:x\\s*)?(\\d+)`, 'i');
+        const match = userInput.match(quantityRegex);
+        const quantity = match ? (match[1] || match[2]) : undefined;
+        
+        foundItems.push({ 
+          name: item.charAt(0).toUpperCase() + item.slice(1),
+          quantity: quantity ? `${quantity}` : undefined
+        });
+      }
+    }
+    
+    // Also parse line-by-line for explicit lists
+    const lines = userInput.split(/[,\n]/).filter(line => line.trim());
+    for (const line of lines) {
+      const trimmed = line.trim().replace(/^[-*•]\s*/, '').replace(/^\d+\.?\s*/, '');
+      if (trimmed.length > 2 && !foundItems.some(item => 
+        item.name.toLowerCase() === trimmed.toLowerCase()
+      )) {
+        // Check if it looks like a food item (not a postal code or other text)
+        if (!/^[A-Z]\d[A-Z]\s?\d[A-Z]\d$/.test(trimmed) && 
+            !/^(i|me|my|the|and|or|but|in|on|at|to|for|of|with|by)$/i.test(trimmed)) {
+          foundItems.push({ name: trimmed });
+        }
+      }
+    }
+    
+    return foundItems;
   }
 
   extractPostalCode(userInput: string): string | null {
     // Canadian postal code pattern: A1A 1A1 or A1A1A1
-    const postalCodeRegex = /([A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d)/;
-    const match = userInput.match(postalCodeRegex);
+    const postalCodeRegex = /\b([A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d)\b/g;
+    const matches = userInput.match(postalCodeRegex);
+    if (matches) {
+      // Return the first valid postal code found
+      return matches[0].toUpperCase().replace(/\s/g, '');
+    }
+    
+    // Also check for postal codes without word boundaries (more flexible)
+    const flexibleRegex = /([A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d)/;
+    const match = userInput.match(flexibleRegex);
     return match ? match[1].toUpperCase().replace(/\s/g, '') : null;
   }
 }
