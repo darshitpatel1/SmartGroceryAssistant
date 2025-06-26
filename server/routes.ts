@@ -51,40 +51,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
         page = await browser.newPage();
         await page.setViewport({ width: 1280, height: 720 });
         
-        // Enhanced page setup with reliable input focusing
+        // Auto-dismiss popups and enhance input focusing for Flipp.com
         await page.evaluateOnNewDocument(() => {
-          // Global input focus handler
-          document.addEventListener('click', (e) => {
-            const target = e.target as HTMLElement;
-            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true') {
-              setTimeout(() => {
-                target.focus();
-                if ('selectionStart' in target && 'value' in target) {
-                  const input = target as HTMLInputElement;
-                  const length = input.value.length;
-                  input.setSelectionRange(length, length);
-                }
-              }, 50);
-            }
-          });
-          
-          // Additional focus helper for search boxes and common input patterns
-          document.addEventListener('DOMContentLoaded', () => {
-            const observer = new MutationObserver(() => {
-              // Auto-focus search inputs when they appear
-              const searchInputs = document.querySelectorAll('input[placeholder*="search" i], input[placeholder*="Search" i]');
-              searchInputs.forEach(input => {
-                const element = input as HTMLInputElement;
-                if (!element.dataset.focusSetup) {
-                  element.dataset.focusSetup = 'true';
-                  element.addEventListener('click', () => {
-                    setTimeout(() => element.focus(), 10);
-                  });
+          // Auto-click Accept All and dismiss popups
+          const autoClickPopups = () => {
+            // Cookie consent "Accept All"
+            const acceptButtons = document.querySelectorAll('button');
+            acceptButtons.forEach(btn => {
+              const text = btn.textContent?.toLowerCase() || '';
+              if (text.includes('accept all') || text.includes('accept')) {
+                console.log('Auto-clicking Accept All button');
+                (btn as HTMLButtonElement).click();
+              }
+            });
+            
+            // App download popup close buttons
+            const closeSelectors = ['button', '[role="button"]', '.close', '[aria-label*="close" i]'];
+            closeSelectors.forEach(selector => {
+              const buttons = document.querySelectorAll(selector);
+              buttons.forEach(btn => {
+                const element = btn as HTMLElement;
+                const ariaLabel = element.getAttribute('aria-label')?.toLowerCase() || '';
+                const className = element.className?.toLowerCase() || '';
+                if (ariaLabel.includes('close') || className.includes('close') || 
+                    element.textContent?.includes('×') || element.textContent?.includes('✕')) {
+                  console.log('Auto-clicking close button');
+                  element.click();
                 }
               });
             });
+            
+            // Remove download popups by hiding them
+            const popups = document.querySelectorAll('[class*="popup"], [class*="modal"], [class*="overlay"]');
+            popups.forEach(popup => {
+              const element = popup as HTMLElement;
+              if (element.textContent?.includes('Download') || element.textContent?.includes('app')) {
+                element.style.display = 'none';
+                console.log('Auto-hiding app download popup');
+              }
+            });
+          };
+          
+          // Run popup dismissal immediately and on content changes
+          setTimeout(autoClickPopups, 1000);
+          setTimeout(autoClickPopups, 3000);
+          setTimeout(autoClickPopups, 5000);
+          
+          // Enhanced search input focusing
+          const setupSearchInputs = () => {
+            const searchInputs = document.querySelectorAll('input[placeholder*="search" i], input[placeholder*="Search" i], input[placeholder*="flyers" i]');
+            searchInputs.forEach(input => {
+              const element = input as HTMLInputElement;
+              if (!element.dataset.focusSetup) {
+                element.dataset.focusSetup = 'true';
+                element.addEventListener('click', () => {
+                  setTimeout(() => {
+                    element.focus();
+                    element.select();
+                  }, 10);
+                });
+              }
+            });
+          };
+          
+          // Setup inputs and monitor for new ones
+          document.addEventListener('DOMContentLoaded', () => {
+            setupSearchInputs();
+            autoClickPopups();
+            
+            const observer = new MutationObserver(() => {
+              setupSearchInputs();
+              autoClickPopups();
+            });
             observer.observe(document.body, { childList: true, subtree: true });
           });
+          
+          // Immediate setup
+          setupSearchInputs();
         });
         
         // Simplified loading tracking
@@ -152,26 +195,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Wait a bit for any navigation to settle
           await new Promise(resolve => setTimeout(resolve, 100));
           
-          // Safe focus detection with error handling
+          // Enhanced focus detection for search inputs
           try {
             const focusResult = await page.evaluate((clickX, clickY) => {
               try {
-                const element = document.elementFromPoint(clickX, clickY) as HTMLElement;
+                let element = document.elementFromPoint(clickX, clickY) as HTMLElement;
                 if (!element) return { focused: false, reason: 'no element found' };
+                
+                // If clicking on a div/wrapper, look for input inside or nearby
+                if (element.tagName.toLowerCase() !== 'input') {
+                  // Check if clicked element contains an input
+                  const inputInside = element.querySelector('input');
+                  if (inputInside) {
+                    element = inputInside as HTMLElement;
+                  } else {
+                    // Look for nearby search inputs
+                    const searchInputs = document.querySelectorAll('input[placeholder*="search" i], input[placeholder*="Search" i], input[placeholder*="flyers" i]');
+                    if (searchInputs.length > 0) {
+                      element = searchInputs[0] as HTMLElement;
+                    }
+                  }
+                }
                 
                 const tagName = element.tagName.toLowerCase();
                 const isInput = tagName === 'input' || tagName === 'textarea' || element.contentEditable === 'true';
                 
                 if (isInput) {
-                  // Force focus multiple ways
+                  // Multiple focus methods
                   element.focus();
                   element.click();
+                  (element as HTMLInputElement).select();
                   
-                  // For input/textarea, position cursor
-                  if ('selectionStart' in element && 'value' in element) {
-                    const inputElement = element as HTMLInputElement;
-                    const length = inputElement.value.length;
-                    inputElement.setSelectionRange(length, length);
+                  // Clear any existing value for search
+                  if ('value' in element && element.getAttribute('placeholder')?.toLowerCase().includes('search')) {
+                    (element as HTMLInputElement).value = '';
                   }
                   
                   // Verify focus worked
@@ -179,12 +236,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   return { 
                     focused: isFocused, 
                     tagName, 
-                    hasValue: 'value' in element,
+                    placeholder: element.getAttribute('placeholder') || '',
                     value: 'value' in element ? (element as HTMLInputElement).value : ''
                   };
                 }
                 
-                return { focused: false, reason: 'not an input element', tagName };
+                return { focused: false, reason: 'not an input element', tagName, className: element.className };
               } catch (e: any) {
                 return { focused: false, reason: 'evaluation error', error: String(e) };
               }
