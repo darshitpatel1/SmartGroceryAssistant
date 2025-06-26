@@ -51,15 +51,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         page = await browser.newPage();
         await page.setViewport({ width: 1280, height: 720 });
         
-        // Minimal page setup - remove problematic focus handlers
+        // Enhanced page setup with reliable input focusing
         await page.evaluateOnNewDocument(() => {
-          // Simple click enhancement without continuous focusing
+          // Global input focus handler
           document.addEventListener('click', (e) => {
             const target = e.target as HTMLElement;
             if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true') {
-              // Only focus once, don't prevent blur
-              target.focus();
+              setTimeout(() => {
+                target.focus();
+                if ('selectionStart' in target && 'value' in target) {
+                  const input = target as HTMLInputElement;
+                  const length = input.value.length;
+                  input.setSelectionRange(length, length);
+                }
+              }, 50);
             }
+          });
+          
+          // Additional focus helper for search boxes and common input patterns
+          document.addEventListener('DOMContentLoaded', () => {
+            const observer = new MutationObserver(() => {
+              // Auto-focus search inputs when they appear
+              const searchInputs = document.querySelectorAll('input[placeholder*="search" i], input[placeholder*="Search" i]');
+              searchInputs.forEach(input => {
+                const element = input as HTMLInputElement;
+                if (!element.dataset.focusSetup) {
+                  element.dataset.focusSetup = 'true';
+                  element.addEventListener('click', () => {
+                    setTimeout(() => element.focus(), 10);
+                  });
+                }
+              });
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
           });
         });
         
@@ -122,28 +146,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const x = xNorm * viewport.width;
           const y = yNorm * viewport.height;
           
-          // Click and auto-focus inputs
+          // Click first
           await page.mouse.click(x, y);
           
-          // After click, check if we clicked on an input and focus it
-          await page.evaluate((clickX, clickY) => {
-            const element = document.elementFromPoint(clickX, clickY) as HTMLElement;
-            if (element) {
-              const tagName = element.tagName.toLowerCase();
-              // Auto-focus input elements
-              if (tagName === 'input' || tagName === 'textarea' || element.contentEditable === 'true') {
-                element.focus();
-                // Position cursor at end of existing text for better typing experience
-                if ('selectionStart' in element && 'value' in element) {
-                  const inputElement = element as HTMLInputElement;
-                  const length = inputElement.value.length;
-                  inputElement.setSelectionRange(length, length);
-                }
-              }
-            }
-          }, x, y);
+          // Wait a bit for any navigation to settle
+          await new Promise(resolve => setTimeout(resolve, 100));
           
-          console.log(`Click at: ${x}, ${y}`);
+          // Safe focus detection with error handling
+          try {
+            const focusResult = await page.evaluate((clickX, clickY) => {
+              try {
+                const element = document.elementFromPoint(clickX, clickY) as HTMLElement;
+                if (!element) return { focused: false, reason: 'no element found' };
+                
+                const tagName = element.tagName.toLowerCase();
+                const isInput = tagName === 'input' || tagName === 'textarea' || element.contentEditable === 'true';
+                
+                if (isInput) {
+                  // Force focus multiple ways
+                  element.focus();
+                  element.click();
+                  
+                  // For input/textarea, position cursor
+                  if ('selectionStart' in element && 'value' in element) {
+                    const inputElement = element as HTMLInputElement;
+                    const length = inputElement.value.length;
+                    inputElement.setSelectionRange(length, length);
+                  }
+                  
+                  // Verify focus worked
+                  const isFocused = document.activeElement === element;
+                  return { 
+                    focused: isFocused, 
+                    tagName, 
+                    hasValue: 'value' in element,
+                    value: 'value' in element ? (element as HTMLInputElement).value : ''
+                  };
+                }
+                
+                return { focused: false, reason: 'not an input element', tagName };
+              } catch (e: any) {
+                return { focused: false, reason: 'evaluation error', error: String(e) };
+              }
+            }, x, y);
+            
+            console.log(`Click at: ${x}, ${y} - Focus result:`, focusResult);
+          } catch (evalError) {
+            console.log(`Click at: ${x}, ${y} - Focus evaluation failed:`, String(evalError));
+          }
         }
       } catch (error) {
         console.error("Click error:", error);
