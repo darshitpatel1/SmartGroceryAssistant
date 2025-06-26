@@ -8,10 +8,8 @@ interface UseSocketReturn {
   currentUrl: string;
   canGoBack: boolean;
   canGoForward: boolean;
-  cursorStyle: string;
   browse: (url: string) => void;
   click: (xNorm: number, yNorm: number) => void;
-  mousemove: (xNorm: number, yNorm: number) => void;
   type: (text: string) => void;
   scroll: (deltaY: number) => void;
   pressKey: (key: string, modifiers?: string[]) => void;
@@ -25,7 +23,6 @@ export function useSocket(): UseSocketReturn {
   const [currentUrl, setCurrentUrl] = useState('');
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
-  const [cursorStyle, setCursorStyle] = useState('default');
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
@@ -65,9 +62,7 @@ export function useSocket(): UseSocketReturn {
       setCanGoForward(forward);
     });
 
-    socket.on('cursor_change', ({ cursor }: { cursor: string }) => {
-      setCursorStyle(cursor);
-    });
+
 
     socket.on('error', ({ message }: { message: string }) => {
       console.error('Socket error:', message);
@@ -120,12 +115,6 @@ export function useSocket(): UseSocketReturn {
     }
   };
 
-  const mousemove = (xNorm: number, yNorm: number) => {
-    if (socketRef.current) {
-      socketRef.current.emit('mousemove', { xNorm, yNorm });
-    }
-  };
-
   return {
     socket: socketRef.current,
     connected,
@@ -133,10 +122,8 @@ export function useSocket(): UseSocketReturn {
     currentUrl,
     canGoBack,
     canGoForward,
-    cursorStyle,
     browse,
     click,
-    mousemove,
     type,
     scroll,
     pressKey,
