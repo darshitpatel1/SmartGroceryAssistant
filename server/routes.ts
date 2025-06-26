@@ -51,40 +51,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         page = await browser.newPage();
         await page.setViewport({ width: 1280, height: 720 });
         
-        // Enhanced page setup for native interactions
+        // Minimal page setup - remove problematic focus handlers
         await page.evaluateOnNewDocument(() => {
-          // Override click events to ensure proper focus
+          // Simple click enhancement without continuous focusing
           document.addEventListener('click', (e) => {
             const target = e.target as HTMLElement;
             if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true') {
-              setTimeout(() => target.focus(), 0);
+              // Only focus once, don't prevent blur
+              target.focus();
             }
           });
-          
-          // Prevent focus loss
-          document.addEventListener('blur', (e) => {
-            const target = e.target as HTMLElement;
-            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
-              setTimeout(() => target.focus(), 100);
-            }
-          }, true);
         });
         
-        // Loading progress tracking
-        page.on('request', () => {
-          socket.emit("loading", { status: "loading" });
-        });
-        
-        page.on('response', () => {
-          socket.emit("loading", { status: "loading" });
-        });
+        // Simplified loading tracking
+        let loadingTimeout: NodeJS.Timeout;
         
         page.on('load', () => {
+          clearTimeout(loadingTimeout);
           socket.emit("loading", { status: "complete" });
         });
         
-        // Navigate to URL
-        await page.goto(url, { waitUntil: "networkidle0", timeout: 30000 });
+        page.on('domcontentloaded', () => {
+          clearTimeout(loadingTimeout);
+          socket.emit("loading", { status: "complete" });
+        });
+        
+        // Navigate to URL with faster loading
+        await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15000 });
         
         // Set up CDP for screen capture
         cdp = await page.target().createCDPSession();
@@ -100,17 +93,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await cdp!.send("Page.screencastFrameAck", { sessionId });
         });
 
-        // URL change tracking
+        // Simple URL tracking
         page.on('framenavigated', (frame) => {
           if (frame === page!.mainFrame()) {
             const currentUrl = page!.url();
             console.log("URL changed to:", currentUrl);
             socket.emit("url_changed", { url: currentUrl, canGoBack: true, canGoForward: false });
+            socket.emit("loading", { status: "complete" });
           }
         });
 
-        const currentUrl = page.url();
-        socket.emit("navigation_complete", { url: currentUrl, canGoBack: false, canGoForward: false });
+        socket.emit("navigation_complete", { url: page.url(), canGoBack: false, canGoForward: false });
         socket.emit("loading", { status: "complete" });
         
       } catch (error) {
@@ -150,35 +143,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             };
           }, x, y);
           
-          if (elementInfo.type === 'dropdown') {
-            // For dropdowns: hover first, wait, then click with delays
-            await page.mouse.move(x, y);
-            await new Promise(resolve => setTimeout(resolve, 100));
-            await page.mouse.click(x, y);
-            await new Promise(resolve => setTimeout(resolve, 150));
-            // Second click if dropdown didn't open
-            await page.mouse.click(x, y);
-            console.log(`Dropdown click at: ${x}, ${y}`);
-          } else if (elementInfo.type === 'input') {
-            // For inputs: focus first, then position cursor properly
-            await page.mouse.click(x, y);
-            await page.evaluate((clickX, clickY) => {
-              const element = document.elementFromPoint(clickX, clickY) as HTMLInputElement;
-              if (element && (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA')) {
-                element.focus();
-                // Position cursor at end of existing text
-                if ('selectionStart' in element) {
-                  const textLength = element.value.length;
-                  element.setSelectionRange(textLength, textLength);
-                }
-              }
-            }, x, y);
-            console.log(`Input click at: ${x}, ${y}`);
-          } else {
-            // Normal elements: single clean click
-            await page.mouse.click(x, y);
-            console.log(`Normal click at: ${x}, ${y}`);
-          }
+          // Simplified click handling - no complex element detection
+          await page.mouse.click(x, y);
+          console.log(`Click at: ${x}, ${y}`);
         }
       } catch (error) {
         console.error("Click error:", error);
@@ -189,59 +156,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!page) return;
       
       try {
-        // Fixed typing - append characters instead of overwriting
-        const success = await page.evaluate((textToType) => {
-          const activeElement = document.activeElement as HTMLInputElement;
-          
-          // Type into focused element by appending to existing value
-          if (activeElement && 
-              (activeElement.tagName === 'INPUT' || 
-               activeElement.tagName === 'TEXTAREA' || 
-               activeElement.contentEditable === 'true')) {
-            
-            if ('value' in activeElement) {
-              // Get current cursor position
-              const cursorPos = activeElement.selectionStart || activeElement.value.length;
-              const currentValue = activeElement.value;
-              
-              // Insert new text at cursor position
-              const newValue = currentValue.slice(0, cursorPos) + textToType + currentValue.slice(cursorPos);
-              activeElement.value = newValue;
-              
-              // Move cursor to after inserted text
-              const newCursorPos = cursorPos + textToType.length;
-              activeElement.setSelectionRange(newCursorPos, newCursorPos);
-              
-              // Trigger events
-              activeElement.dispatchEvent(new Event('input', { bubbles: true }));
-              activeElement.dispatchEvent(new Event('change', { bubbles: true }));
-              return true;
-            }
-          }
-          
-          // Find and focus best input if none focused
-          const inputs = Array.from(document.querySelectorAll('input[type="text"], input[type="search"], input[type="email"], input[type="password"], textarea'));
-          for (const input of inputs) {
-            const element = input as HTMLInputElement;
-            const rect = element.getBoundingClientRect();
-            if (rect.width > 0 && rect.height > 0 && !element.hasAttribute('disabled')) {
-              element.focus();
-              element.value = textToType;
-              element.dispatchEvent(new Event('input', { bubbles: true }));
-              element.dispatchEvent(new Event('change', { bubbles: true }));
-              return true;
-            }
-          }
-          return false;
-        }, text);
-        
-        if (!success) {
-          // Use keyboard.type character by character with small delays
-          for (const char of text) {
-            await page.keyboard.type(char, { delay: 50 });
-          }
-        }
-        
+        // Simple reliable typing
+        await page.keyboard.type(text, { delay: 100 });
         console.log("Typed:", text);
       } catch (error) {
         console.error("Type error:", error);
@@ -294,25 +210,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       try {
         socket.emit("loading", { status: "loading" });
-        let currentUrl;
         
         if (direction === 'back') {
-          await page.goBack();
-          currentUrl = page.url();
+          await page.goBack({ waitUntil: "domcontentloaded" });
         } else if (direction === 'forward') {
-          await page.goForward();
-          currentUrl = page.url();
+          await page.goForward({ waitUntil: "domcontentloaded" });
         } else if (direction === 'refresh') {
-          await page.reload();
-          currentUrl = page.url();
+          await page.reload({ waitUntil: "domcontentloaded" });
         }
         
+        const currentUrl = page.url();
         socket.emit("navigation_complete", { url: currentUrl, canGoBack: true, canGoForward: false });
         socket.emit("loading", { status: "complete" });
         console.log("Navigation complete:", currentUrl);
       } catch (error) {
         console.error("Navigation error:", error);
-        socket.emit("loading", { status: "error" });
+        socket.emit("loading", { status: "complete" });
       }
     });
 
