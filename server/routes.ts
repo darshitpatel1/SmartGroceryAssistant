@@ -1,12 +1,12 @@
-import type { Express } from "express";
-import { createServer, type Server } from "http";
+import express, { Express } from "express";
+import { Server } from "http";
 import { Server as SocketIOServer } from "socket.io";
-import puppeteer, { type Browser, type Page, type CDPSession } from "puppeteer";
-import { AIShoppingAssistant, ShoppingItem } from './ai-shopping';
+import puppeteer, { Browser, Page, CDPSession } from "puppeteer";
+import { AIShoppingAssistant } from "./ai-shopping.js";
+import fs from 'fs';
+import path from 'path';
 
-export async function registerRoutes(app: Express): Promise<Server> {
-  const httpServer = createServer(app);
-
+export async function registerRoutes(app: Express, httpServer: Server): Promise<void> {
   // Create Socket.IO server
   const io = new SocketIOServer(httpServer, {
     cors: {
@@ -37,7 +37,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Launch browser with optimized settings and user data persistence
         browser = await puppeteer.launch({ 
           headless: true,
-          executablePath: '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium',
           userDataDir: './browser-data', // Persist cookies and settings
           args: [
             '--no-sandbox',
@@ -161,15 +160,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         
         // Simplified loading tracking
-        let loadingTimeout: NodeJS.Timeout;
+        let loadingTimeout: NodeJS.Timeout | undefined;
         
         page.on('load', () => {
-          clearTimeout(loadingTimeout);
+          if (loadingTimeout) clearTimeout(loadingTimeout);
           socket.emit("loading", { status: "complete" });
         });
         
         page.on('domcontentloaded', () => {
-          clearTimeout(loadingTimeout);
+          if (loadingTimeout) clearTimeout(loadingTimeout);
           socket.emit("loading", { status: "complete" });
         });
         
@@ -885,16 +884,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Helper function to perform Flipp search and analysis
     async function performFlippSearch(item: string, postalCode: string) {
-      if (!page || !browser || !aiAssistant) {
+      if (!browser || !aiAssistant) {
         console.log("performFlippSearch: Missing dependencies", {
-          page: !!page,
           browser: !!browser, 
           aiAssistant: !!aiAssistant
         });
         return;
       }
 
+      // Check if browser is still connected
+      if (!browser.isConnected()) {
+        console.error("performFlippSearch: Browser is no longer connected");
+        socket.emit("ai_response", { 
+          message: `Browser connection lost. Please refresh the page and try again.`, 
+          type: 'error' 
+        });
+        return;
+      }
+
+      let searchPage: Page | null = null;
+      let screenshot: string | null = null; // Declare here so it's accessible after page cleanup
+
       try {
+        // Create a new page for each search to avoid frame detachment issues
+        searchPage = await browser.newPage();
+        await searchPage.setViewport({ width: 1280, height: 720 });
+        
+        // Set user agent to appear more like a real browser
+        await searchPage.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36');
+        
+        // Add error handling for page events
+        searchPage.on('error', (error) => {
+          console.log(`performFlippSearch: Page error for ${item}:`, error);
+        });
+        
+        searchPage.on('close', () => {
+          console.log(`performFlippSearch: Page closed for ${item}`);
+        });
+        
+        // Set a longer timeout for requests to handle slow responses
+        await searchPage.setDefaultTimeout(60000);
+        
+        // Override webdriver property to avoid detection
+        await searchPage.evaluateOnNewDocument(() => {
+          Object.defineProperty(navigator, 'webdriver', {
+            get: () => undefined,
+          });
+          
+          // Override chrome property
+          (window as any).chrome = {
+            runtime: {},
+          };
+          
+          // Override permissions
+          Object.defineProperty(navigator, 'permissions', {
+            get: () => ({
+              query: () => Promise.resolve({ state: 'granted' }),
+            }),
+          });
+          
+          // Override plugins
+          Object.defineProperty(navigator, 'plugins', {
+            get: () => [1, 2, 3, 4, 5],
+          });
+          
+          // Override languages
+          Object.defineProperty(navigator, 'languages', {
+            get: () => ['en-US', 'en'],
+          });
+        });
+        
+        console.log("performFlippSearch: Created new page for search");
+
         // Build the Flipp URL
         const flippUrl = `https://flipp.com/search/${encodeURIComponent(item)}?postal_code=${postalCode}`;
         console.log("performFlippSearch: Starting search for", item, "at", flippUrl);
@@ -905,53 +966,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           type: 'info' 
         });
 
-        // Navigate to Flipp URL (this will show in the browser viewport)
         socket.emit("loading", { status: "starting" });
         
         console.log("performFlippSearch: About to navigate to", flippUrl);
         
-        // Set up temporary frame streaming for this AI search
-        let client: any = null;
-        try {
-          client = await page.target().createCDPSession();
-          await client.send('Page.enable');
-          await client.send('Page.startScreencast', {
-            format: 'jpeg',
-            quality: 80,
-            maxWidth: 1280,
-            maxHeight: 720,
-            everyNthFrame: 3
-          });
-
-          const frameHandler = (event: any) => {
-            try {
-              console.log("performFlippSearch: Sending frame to browser viewport");
-              socket.emit('frame', event.data);
-              if (event.metadata?.sessionId) {
-                client.send('Page.screencastFrameAck', { sessionId: event.metadata.sessionId }).catch(() => {});
-              }
-            } catch (error) {
-              console.log("performFlippSearch: Frame error:", error);
-            }
-          };
-
-          client.on('Page.screencastFrame', frameHandler);
-          console.log("performFlippSearch: Frame streaming started for AI navigation");
-        } catch (error) {
-          console.log("performFlippSearch: Frame streaming failed, continuing without live view");
-        }
+        // Set additional headers to appear more like a regular browser
+        await searchPage.setExtraHTTPHeaders({
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+          'sec-ch-ua': '"Google Chrome";v="121", "Not:A-Brand";v="99", "Chromium";v="121"',
+          'sec-ch-ua-mobile': '?0',
+          'sec-ch-ua-platform': '"macOS"',
+          'Sec-Fetch-Dest': 'document',
+          'Sec-Fetch-Mode': 'navigate',
+          'Sec-Fetch-Site': 'none',
+          'Upgrade-Insecure-Requests': '1'
+        });
         
-        // Navigate with proper event handling
-        await page.goto(flippUrl, { 
-          waitUntil: 'networkidle2',
+        // Navigate directly without frame streaming to avoid connection issues
+        await searchPage.goto(flippUrl, { 
+          waitUntil: 'domcontentloaded',
           timeout: 30000 
         });
         
-        console.log("performFlippSearch: Navigation completed to", page.url());
+        console.log("performFlippSearch: Navigation completed to", searchPage.url());
+
+        // Check if page is still connected after navigation
+        if (searchPage.isClosed() || !browser.isConnected()) {
+          throw new Error("Page or browser connection lost during navigation");
+        }
 
         // Get navigation state and emit proper events
-        const canGoBack = await page.evaluate(() => window.history.length > 1);
-        const currentUrl = page.url();
+        const canGoBack = await searchPage.evaluate(() => window.history.length > 1);
+        const currentUrl = searchPage.url();
         
         // Emit all navigation events that the frontend expects
         socket.emit("url_update", { url: currentUrl });
@@ -967,96 +1017,262 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         socket.emit("loading", { status: "complete" });
 
-        // Take an immediate screenshot after navigation to show the page
-        const navigationScreenshot = await page.screenshot({ 
-          encoding: 'base64',
-          type: 'jpeg',
-          quality: 80
-        });
-        socket.emit('frame', navigationScreenshot);
-
         // Wait for page to load and content to appear
         socket.emit("ai_response", { 
-          message: `📄 Page loaded at ${currentUrl}, waiting for search results...`, 
+          message: `📄 Page loaded at ${currentUrl}, waiting 10 seconds for search results to load...`, 
           type: 'info' 
         });
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        // Simple 10-second wait to ensure page fully loads
+        console.log("performFlippSearch: Starting 10-second wait for content to load");
+        await new Promise(resolve => setTimeout(resolve, 10000));
+        
+        // Basic connection check after wait
+        if (searchPage.isClosed()) {
+          throw new Error("Page was closed while waiting for results");
+        }
+        
+        if (!browser.isConnected()) {
+          throw new Error("Browser connection lost while waiting for results");
+        }
+        
+        console.log("performFlippSearch: 10-second wait completed, page still connected");
 
-        // Take screenshot for AI analysis
+        // Take screenshot for AI analysis with retry logic
         socket.emit("ai_response", { 
           message: `📸 Taking screenshot for AI analysis...`, 
           type: 'info' 
         });
         
-        const screenshot = await page.screenshot({ 
-          encoding: 'base64',
-          type: 'jpeg',
-          quality: 80
-        });
+        let screenshotAttempts = 0;
+        const maxScreenshotAttempts = 3;
+        
+        while (screenshotAttempts < maxScreenshotAttempts && !screenshot) {
+          screenshotAttempts++;
+          
+          try {
+            // Check if page is still valid before taking screenshot
+            if (searchPage.isClosed()) {
+              throw new Error("Page was closed before screenshot could be taken");
+            }
+            
+            if (!browser.isConnected()) {
+              throw new Error("Browser connection lost before screenshot");
+            }
+            
+            // Try to ping the page to make sure it's responsive
+            await searchPage.evaluate(() => document.readyState);
+            
+            console.log(`performFlippSearch: Taking screenshot attempt ${screenshotAttempts}/${maxScreenshotAttempts}`);
+            
+            screenshot = await searchPage.screenshot({ 
+              encoding: 'base64',
+              type: 'jpeg',
+              quality: 80
+            });
 
-        // Send the screenshot to the browser viewport so user can see what we're analyzing
-        socket.emit('frame', screenshot);
+            console.log(`performFlippSearch: Screenshot captured successfully on attempt ${screenshotAttempts}`);
+            
+            // Save screenshot locally for debugging
+            try {
+              // Create screenshots directory if it doesn't exist
+              const screenshotsDir = path.join(process.cwd(), 'debug-screenshots');
+              if (!fs.existsSync(screenshotsDir)) {
+                fs.mkdirSync(screenshotsDir, { recursive: true });
+              }
+              
+              // Generate filename with timestamp and item name
+              const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+              const sanitizedItem = item.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+              const filename = `flipp-search-${sanitizedItem}-${timestamp}.jpg`;
+              const filepath = path.join(screenshotsDir, filename);
+              
+              // Save the screenshot
+              fs.writeFileSync(filepath, screenshot, 'base64');
+              console.log(`performFlippSearch: Screenshot saved to ${filepath}`);
+              
+              socket.emit("ai_response", { 
+                message: `📁 Screenshot saved for debugging: ${filename}`, 
+                type: 'debug' 
+              });
+              
+            } catch (saveError) {
+              console.error('Failed to save screenshot locally:', saveError);
+              // Don't fail the search if screenshot saving fails
+            }
+            
+            // Send the screenshot to the browser viewport so user can see what we're analyzing
+            socket.emit('frame', screenshot);
+            
+          } catch (screenshotError) {
+            console.error(`Screenshot attempt ${screenshotAttempts} failed:`, screenshotError);
+            
+            const errorMsg = screenshotError instanceof Error ? screenshotError.message : String(screenshotError);
+            
+            if (screenshotAttempts >= maxScreenshotAttempts) {
+              // Final attempt failed
+              socket.emit("ai_response", { 
+                message: `Unable to capture screenshot for ${item} after ${maxScreenshotAttempts} attempts. The page may have connection issues.`, 
+                type: 'warning' 
+              });
+              return; // Exit early if all screenshot attempts fail
+            } else if (errorMsg.includes('Target closed') || errorMsg.includes('Protocol error')) {
+              // Connection lost - try to create a new page
+              console.log(`performFlippSearch: Connection lost during screenshot, attempt ${screenshotAttempts}. Trying to recover...`);
+              
+              try {
+                // Close the problematic page if it's not already closed
+                if (!searchPage.isClosed()) {
+                  await searchPage.close();
+                }
+                
+                // Create a new page and navigate again
+                searchPage = await browser.newPage();
+                await searchPage.setViewport({ width: 1280, height: 720 });
+                
+                console.log(`performFlippSearch: Created new page for retry attempt ${screenshotAttempts + 1}`);
+                
+                // Navigate again
+                await searchPage.goto(flippUrl, { 
+                  waitUntil: 'domcontentloaded',
+                  timeout: 30000 
+                });
+                
+                // Wait a bit for content to load
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+              } catch (recoveryError) {
+                console.error("Failed to recover from connection loss:", recoveryError);
+                socket.emit("ai_response", { 
+                  message: `Unable to recover browser connection for ${item}. Please try again.`, 
+                  type: 'error' 
+                });
+                return;
+              }
+            } else {
+              // Other error - wait a bit before retry
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+          }
+        }
 
-        // Notify AI analysis start
+        // Notify AI analysis start (moved outside the page handling block)
         socket.emit("ai_response", { 
           message: `🤖 Analyzing prices with AI...`, 
           type: 'info' 
         });
 
-        // Use AI to analyze the screenshot
-        const analysis = await aiAssistant.analyzeFlippScreenshots(
-          item,
-          [screenshot as string]
-        );
-
-        // Send all deals found to client
-        if (analysis.analyses && analysis.analyses.length > 0) {
-          // Send analysis summary first
-          socket.emit("ai_response", { 
-            message: analysis.summary, 
-            type: 'analysis' 
-          });
-
-          // Send each deal as a separate message for better display
-          analysis.analyses.forEach((deal, index) => {
-            const dealMessage = `${deal.brand ? `${deal.brand} ` : ''}${deal.item} - ${deal.price}${deal.packageSize ? ` (${deal.packageSize})` : ''} at ${deal.store}${deal.savings ? ` - ${deal.savings}` : ''}${deal.points ? ` + ${deal.points}` : ''}`;
-            
-            socket.emit("deal_found", {
-              item: deal.item,
-              brand: deal.brand,
-              store: deal.store,
-              price: deal.price,
-              packageSize: deal.packageSize,
-              savings: deal.savings,
-              points: deal.points,
-              confidence: deal.confidence,
-              dealMessage: dealMessage,
-              dealIndex: index + 1,
-              totalDeals: analysis.analyses.length
-            });
-          });
-        } else {
-          socket.emit("ai_response", { 
-            message: `No clear price information found for ${item}. The store might be out of stock or the page didn't load properly.`, 
-            type: 'info' 
-          });
-        }
-
-        // Clean up frame streaming after analysis
-        if (client) {
-          try {
-            await client.send('Page.stopScreencast');
-            await client.detach();
-            console.log("performFlippSearch: Frame streaming stopped");
-          } catch (error) {
-            // Ignore cleanup errors
-          }
-        }
-
       } catch (error) {
         console.error("Flipp search error for", item, ":", error);
-        socket.emit("search_error", { 
-          message: `Sorry, I had trouble searching for ${item}. Please try again.` 
+        
+        // Provide more specific error messages based on error type
+        let errorMessage = `Sorry, I had trouble searching for ${item}. Please try again.`;
+        
+        const errorString = String(error);
+        const errorMsg = error instanceof Error ? error.message : errorString;
+        
+        if (errorMsg.includes('Target closed') || errorMsg.includes('Protocol error')) {
+          errorMessage = `Search for ${item} was interrupted due to browser connection issues. Please try again.`;
+        } else if (errorMsg.includes('timeout') || errorMsg.includes('Navigation timeout')) {
+          errorMessage = `Flipp.com took too long to respond when searching for ${item}. Please try again.`;
+        } else if (errorMsg.includes('net::ERR_')) {
+          errorMessage = `Network error while searching for ${item}. Please check your connection and try again.`;
+        }
+        
+        socket.emit("ai_response", { 
+          message: errorMessage, 
+          type: 'error' 
+        });
+      } finally {
+        // Always close the search page to free resources
+        if (searchPage) {
+          try {
+            // Multiple checks before attempting to close
+            if (!searchPage.isClosed() && browser && browser.isConnected()) {
+              // Try to check if the page is still accessible
+              try {
+                await searchPage.evaluate(() => document.readyState);
+                await searchPage.close();
+                console.log("performFlippSearch: Successfully closed search page for", item);
+              } catch (evalError) {
+                // Page is not accessible, try to force close or skip
+                console.log("performFlippSearch: Page not accessible, attempting force close for", item);
+                try {
+                  await searchPage.close();
+                } catch (forceCloseError) {
+                  console.log("performFlippSearch: Could not force close page for", item, "- page may have been closed externally");
+                }
+              }
+            } else {
+              console.log("performFlippSearch: Page was already closed or browser disconnected for", item);
+            }
+          } catch (closeError) {
+            // Filter out expected protocol errors that occur when browser closes unexpectedly
+            const errorMessage = closeError instanceof Error ? closeError.message : String(closeError);
+            if (errorMessage.includes('Protocol error') || 
+                errorMessage.includes('Connection closed') ||
+                errorMessage.includes('Target closed')) {
+              // These are expected when browser connection is lost - don't log them
+              console.log("performFlippSearch: Browser connection lost for", item, "- page cleanup skipped");
+            } else {
+              // Log unexpected errors but don't throw - page cleanup failure shouldn't crash the search
+              console.log("performFlippSearch: Non-critical error during page cleanup for", item, ":", errorMessage);
+            }
+          }
+        }
+      }
+
+      // AI analysis happens after page cleanup to avoid interruption
+      if (screenshot) {
+        try {
+          const analysis = await aiAssistant.analyzeFlippScreenshots(
+            item,
+            [screenshot]
+          );
+
+          // Send all deals found to client
+          if (analysis.analyses && analysis.analyses.length > 0) {
+            // Send analysis summary first
+            socket.emit("ai_response", { 
+              message: analysis.summary, 
+              type: 'analysis' 
+            });
+
+            // Send each deal as a separate message for better display
+            analysis.analyses.forEach((deal, index) => {
+              const dealMessage = `${deal.brand ? `${deal.brand} ` : ''}${deal.item} - ${deal.price}${deal.packageSize ? ` (${deal.packageSize})` : ''} at ${deal.store}${deal.savings ? ` - ${deal.savings}` : ''}${deal.points ? ` + ${deal.points}` : ''}`;
+              
+              socket.emit("deal_found", {
+                item: deal.item,
+                brand: deal.brand,
+                store: deal.store,
+                price: deal.price,
+                packageSize: deal.packageSize,
+                savings: deal.savings,
+                points: deal.points,
+                confidence: deal.confidence,
+                dealMessage: dealMessage,
+                dealIndex: index + 1,
+                totalDeals: analysis.analyses.length
+              });
+            });
+          } else {
+            socket.emit("ai_response", { 
+              message: `No clear price information found for ${item}. The store might be out of stock or the page didn't load properly.`, 
+              type: 'info' 
+            });
+          }
+        } catch (analysisError) {
+          console.error("AI analysis error for", item, ":", analysisError);
+          socket.emit("ai_response", { 
+            message: `Analysis failed for ${item}. The screenshot was captured but AI processing encountered an error.`, 
+            type: 'error' 
+          });
+        }
+      } else {
+        socket.emit("ai_response", { 
+          message: `Could not capture screenshot for ${item}. Please try again.`, 
+          type: 'error' 
         });
       }
     }
@@ -1072,14 +1288,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Initialize browser if it doesn't exist
-        if (!browser || !page) {
+        if (!browser) {
           console.log("AI Chat: Initializing browser for the first time");
           
           try {
-            // Launch browser with optimized settings
+            // Launch browser with stable settings for AI operations
             browser = await puppeteer.launch({ 
               headless: true,
-              executablePath: '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium',
               userDataDir: './browser-data',
               args: [
                 '--no-sandbox',
@@ -1087,20 +1302,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 '--disable-dev-shm-usage',
                 '--disable-accelerated-2d-canvas',
                 '--no-first-run',
-                '--no-zygote',
-                '--single-process',
                 '--disable-gpu',
                 '--disable-web-security',
-                '--disable-features=VizDisplayCompositor'
+                '--disable-features=VizDisplayCompositor',
+                '--disable-blink-features=AutomationControlled',
+                '--disable-extensions',
+                '--no-default-browser-check',
+                '--disable-background-timer-throttling',
+                '--disable-backgrounding-occluded-windows',
+                '--disable-renderer-backgrounding',
+                '--disable-features=TranslateUI',
+                '--disable-ipc-flooding-protection'
               ]
             });
-            
-            page = await browser.newPage();
-            await page.setViewport({ width: 1280, height: 720 });
-            
-            // Skip frame streaming for AI-initialized browser to avoid crashes
-            // The user will see the results through screenshots in the chat
-            console.log("AI Chat: Skipping frame streaming to prevent crashes");
             
             console.log("AI Chat: Browser initialized successfully");
           } catch (error) {
@@ -1314,11 +1528,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             data: { current: i + 1, total: items.length, item }
           });
 
-          // Trigger price search for this item
-          socket.emit("start_price_search", { item, postalCode });
+          // Use the performFlippSearch function directly to avoid race conditions
+          await performFlippSearch(item, postalCode);
           
-          // Wait between searches to avoid overwhelming the server
-          await new Promise(resolve => setTimeout(resolve, 5000));
+          // Wait between searches to prevent browser connection issues
+          await new Promise(resolve => setTimeout(resolve, 2000));
         }
 
         socket.emit("ai_response", { 
@@ -1342,6 +1556,4 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
   });
-
-  return httpServer;
 }
