@@ -129,31 +129,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const x = xNorm * viewport.width;
           const y = yNorm * viewport.height;
           
-          // Enhanced click with element detection and focus handling
-          await page.evaluate((clickX, clickY) => {
+          // Enhanced click with proper timing for dropdowns and stable focus
+          const elementInfo = await page.evaluate((clickX, clickY) => {
             const element = document.elementFromPoint(clickX, clickY) as HTMLElement;
-            if (element) {
-              // Force click and focus for input elements
-              if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA' || element.contentEditable === 'true') {
-                element.focus();
-                element.click();
-                // Ensure cursor placement
-                if ('selectionStart' in element) {
-                  const inputElement = element as HTMLInputElement;
-                  const rect = element.getBoundingClientRect();
-                  const relativeX = clickX - rect.left;
-                  const charPos = Math.floor((relativeX / rect.width) * inputElement.value.length);
-                  inputElement.setSelectionRange(charPos, charPos);
-                }
-              } else {
-                element.click();
-              }
-            }
+            if (!element) return { type: 'none' };
+            
+            const tagName = element.tagName.toLowerCase();
+            const hasDropdown = element.querySelector('select, option') || 
+                               element.closest('select, .dropdown, [role="listbox"], [role="menu"]') ||
+                               element.getAttribute('role') === 'button' ||
+                               element.classList.contains('dropdown') ||
+                               element.classList.contains('select');
+            
+            const isInput = tagName === 'input' || tagName === 'textarea' || element.contentEditable === 'true';
+            
+            return {
+              type: hasDropdown ? 'dropdown' : (isInput ? 'input' : 'normal'),
+              tagName,
+              rect: element.getBoundingClientRect()
+            };
           }, x, y);
           
-          // Physical click as backup
-          await page.mouse.click(x, y);
-          console.log(`Enhanced click at: ${x}, ${y}`);
+          if (elementInfo.type === 'dropdown') {
+            // For dropdowns: hover first, wait, then click with delays
+            await page.mouse.move(x, y);
+            await new Promise(resolve => setTimeout(resolve, 100));
+            await page.mouse.click(x, y);
+            await new Promise(resolve => setTimeout(resolve, 150));
+            // Second click if dropdown didn't open
+            await page.mouse.click(x, y);
+            console.log(`Dropdown click at: ${x}, ${y}`);
+          } else if (elementInfo.type === 'input') {
+            // For inputs: focus first, then position cursor properly
+            await page.mouse.click(x, y);
+            await page.evaluate((clickX, clickY) => {
+              const element = document.elementFromPoint(clickX, clickY) as HTMLInputElement;
+              if (element && (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA')) {
+                element.focus();
+                // Position cursor at end of existing text
+                if ('selectionStart' in element) {
+                  const textLength = element.value.length;
+                  element.setSelectionRange(textLength, textLength);
+                }
+              }
+            }, x, y);
+            console.log(`Input click at: ${x}, ${y}`);
+          } else {
+            // Normal elements: single clean click
+            await page.mouse.click(x, y);
+            console.log(`Normal click at: ${x}, ${y}`);
+          }
         }
       } catch (error) {
         console.error("Click error:", error);
@@ -164,18 +189,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!page) return;
       
       try {
-        // Enhanced typing with focus management
+        // Fixed typing - append characters instead of overwriting
         const success = await page.evaluate((textToType) => {
-          const activeElement = document.activeElement as HTMLElement;
+          const activeElement = document.activeElement as HTMLInputElement;
           
-          // Type into focused element
+          // Type into focused element by appending to existing value
           if (activeElement && 
               (activeElement.tagName === 'INPUT' || 
                activeElement.tagName === 'TEXTAREA' || 
                activeElement.contentEditable === 'true')) {
             
             if ('value' in activeElement) {
-              (activeElement as HTMLInputElement).value = textToType;
+              // Get current cursor position
+              const cursorPos = activeElement.selectionStart || activeElement.value.length;
+              const currentValue = activeElement.value;
+              
+              // Insert new text at cursor position
+              const newValue = currentValue.slice(0, cursorPos) + textToType + currentValue.slice(cursorPos);
+              activeElement.value = newValue;
+              
+              // Move cursor to after inserted text
+              const newCursorPos = cursorPos + textToType.length;
+              activeElement.setSelectionRange(newCursorPos, newCursorPos);
+              
+              // Trigger events
               activeElement.dispatchEvent(new Event('input', { bubbles: true }));
               activeElement.dispatchEvent(new Event('change', { bubbles: true }));
               return true;
@@ -185,11 +222,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Find and focus best input if none focused
           const inputs = Array.from(document.querySelectorAll('input[type="text"], input[type="search"], input[type="email"], input[type="password"], textarea'));
           for (const input of inputs) {
-            const element = input as HTMLElement;
+            const element = input as HTMLInputElement;
             const rect = element.getBoundingClientRect();
             if (rect.width > 0 && rect.height > 0 && !element.hasAttribute('disabled')) {
               element.focus();
-              (element as HTMLInputElement).value = textToType;
+              element.value = textToType;
               element.dispatchEvent(new Event('input', { bubbles: true }));
               element.dispatchEvent(new Event('change', { bubbles: true }));
               return true;
@@ -199,7 +236,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }, text);
         
         if (!success) {
-          await page.keyboard.type(text);
+          // Use keyboard.type character by character with small delays
+          for (const char of text) {
+            await page.keyboard.type(char, { delay: 50 });
+          }
         }
         
         console.log("Typed:", text);
