@@ -68,7 +68,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await cdp!.send("Page.screencastFrameAck", { sessionId });
         });
 
-        socket.emit("navigation_complete", { url });
+        // Get current URL and navigation state
+        const currentUrl = page.url();
+        const canGoBack = await page.evaluate(() => window.history.length > 1);
+        const canGoForward = false; // Will be updated by navigation events
+        
+        socket.emit("navigation_complete", { url: currentUrl, canGoBack, canGoForward });
       } catch (error) {
         console.error("Browse error:", error);
         socket.emit("error", { message: "Failed to navigate to URL" });
@@ -141,6 +146,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("Zoom set to:", level);
       } catch (error) {
         console.error("Zoom error:", error);
+      }
+    });
+
+    socket.on("navigate", async ({ direction }: { direction: 'back' | 'forward' | 'refresh' }) => {
+      if (!page) return;
+      
+      try {
+        let currentUrl;
+        if (direction === 'back') {
+          await page.goBack();
+          currentUrl = page.url();
+          console.log("Navigated back to:", currentUrl);
+        } else if (direction === 'forward') {
+          await page.goForward();
+          currentUrl = page.url();
+          console.log("Navigated forward to:", currentUrl);
+        } else if (direction === 'refresh') {
+          await page.reload();
+          currentUrl = page.url();
+          console.log("Page refreshed:", currentUrl);
+        }
+        
+        // Send updated navigation state
+        const canGoBack = await page.evaluate(() => window.history.length > 1);
+        const canGoForward = false; // Browser API doesn't provide this easily
+        socket.emit("navigation_complete", { url: currentUrl, canGoBack, canGoForward });
+      } catch (error) {
+        console.error("Navigation error:", error);
       }
     });
 

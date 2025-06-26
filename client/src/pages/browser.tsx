@@ -4,7 +4,7 @@ import { useSocket } from '@/hooks/use-socket';
 export default function Browser() {
   const [url, setUrl] = useState('');
   const [zoomLevel, setZoomLevel] = useState(1);
-  const { connected, frame, browse, click, type, scroll, pressKey, zoom } = useSocket();
+  const { connected, frame, currentUrl, canGoBack, canGoForward, browse, click, type, scroll, pressKey, zoom, navigate } = useSocket();
   const viewportRef = useRef<HTMLDivElement>(null);
 
   const handleBrowse = (e: React.FormEvent) => {
@@ -13,6 +13,29 @@ export default function Browser() {
       browse(url);
     }
   };
+
+  const handleBack = () => {
+    if (canGoBack) {
+      navigate('back');
+    }
+  };
+
+  const handleForward = () => {
+    if (canGoForward) {
+      navigate('forward');
+    }
+  };
+
+  const handleRefresh = () => {
+    navigate('refresh');
+  };
+
+  // Update URL input when current URL changes
+  useEffect(() => {
+    if (currentUrl && currentUrl !== url) {
+      setUrl(currentUrl);
+    }
+  }, [currentUrl]);
 
   const handleViewportClick = (e: React.MouseEvent<HTMLImageElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();

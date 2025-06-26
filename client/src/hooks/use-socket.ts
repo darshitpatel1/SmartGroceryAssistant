@@ -5,17 +5,24 @@ interface UseSocketReturn {
   socket: Socket | null;
   connected: boolean;
   frame: string | null;
+  currentUrl: string;
+  canGoBack: boolean;
+  canGoForward: boolean;
   browse: (url: string) => void;
   click: (xNorm: number, yNorm: number) => void;
   type: (text: string) => void;
   scroll: (deltaY: number) => void;
   pressKey: (key: string, modifiers?: string[]) => void;
   zoom: (level: number) => void;
+  navigate: (direction: 'back' | 'forward' | 'refresh') => void;
 }
 
 export function useSocket(): UseSocketReturn {
   const [connected, setConnected] = useState(false);
   const [frame, setFrame] = useState<string | null>(null);
+  const [currentUrl, setCurrentUrl] = useState('');
+  const [canGoBack, setCanGoBack] = useState(false);
+  const [canGoForward, setCanGoForward] = useState(false);
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
@@ -41,8 +48,11 @@ export function useSocket(): UseSocketReturn {
       setFrame(data);
     });
 
-    socket.on('navigation_complete', ({ url }: { url: string }) => {
+    socket.on('navigation_complete', ({ url, canGoBack: back, canGoForward: forward }: { url: string; canGoBack: boolean; canGoForward: boolean }) => {
       console.log('Navigation complete:', url);
+      setCurrentUrl(url);
+      setCanGoBack(back);
+      setCanGoForward(forward);
     });
 
     socket.on('error', ({ message }: { message: string }) => {
@@ -90,15 +100,25 @@ export function useSocket(): UseSocketReturn {
     }
   };
 
+  const navigate = (direction: 'back' | 'forward' | 'refresh') => {
+    if (socketRef.current) {
+      socketRef.current.emit('navigate', { direction });
+    }
+  };
+
   return {
     socket: socketRef.current,
     connected,
     frame,
+    currentUrl,
+    canGoBack,
+    canGoForward,
     browse,
     click,
     type,
     scroll,
     pressKey,
     zoom,
+    navigate,
   };
 }
