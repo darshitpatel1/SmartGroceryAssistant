@@ -215,30 +215,37 @@ export function Chatbot({ className }: ChatbotProps) {
   }
 
   return (
-    <div className={`bg-browser-surface border-l border-browser-border flex flex-col h-full ${className}`}>
+    <div className={`bg-black border-r border-gray-800 flex flex-col h-full ${className}`}>
       {/* Header */}
-      <div className="p-4 border-b border-browser-border flex-shrink-0">
+      <div className="p-4 border-b border-gray-800 flex-shrink-0">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <ShoppingCart className="w-5 h-5 text-browser-primary" />
-            <h3 className="font-semibold text-browser-text">AI Shopping Assistant</h3>
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg">
+              <ShoppingCart className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="font-bold text-white">AI Shopping Assistant</h3>
+              <div className="flex items-center gap-2 text-xs text-gray-400">
+                <MapPin className="w-3 h-3" />
+                <span>Area: M5V</span>
+                <Zap className="w-3 h-3 ml-2 text-yellow-400" />
+                <span>Smart Analysis</span>
+              </div>
+            </div>
           </div>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setIsMinimized(true)}
-            className="h-8 w-8 p-0 hover:bg-browser-border"
+            className="h-8 w-8 p-0 hover:bg-gray-800 text-gray-400"
           >
-            <X className="w-4 h-4 text-browser-text-secondary" />
+            <X className="w-4 h-4" />
           </Button>
         </div>
-        <p className="text-xs text-browser-text-secondary mt-1">
-          Find the best deals with AI price comparison
-        </p>
       </div>
 
       {/* Messages - Fixed height with internal scroll */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden bg-black">
         <div className="h-full overflow-y-auto p-4 space-y-4" style={{ maxHeight: 'calc(100vh - 200px)' }}>
           {messages.map((message) => (
             <div

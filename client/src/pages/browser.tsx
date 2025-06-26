@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSocket } from '@/hooks/use-socket';
 import { Chatbot } from '@/components/chatbot';
 import { BrowserViewport } from '@/components/browser-viewport';
+import { WishlistCanvas } from '@/components/wishlist-canvas';
 
 export default function Browser() {
   const [url, setUrl] = useState('');
@@ -108,78 +109,9 @@ export default function Browser() {
   }, [connected, pressKey, type]);
 
   return (
-    <div className="h-full flex flex-col bg-browser-bg text-browser-text">
-      {/* Navigation Bar */}
-      <div className="p-4 bg-browser-surface border-b border-browser-border">
-        {/* Combined Navigation and URL Bar */}
-        <form onSubmit={handleBrowse} className="flex items-center gap-2">
-          {/* Navigation Buttons */}
-          <button
-            type="button"
-            onClick={handleBack}
-            disabled={!canGoBack || !connected}
-            className="p-2 bg-browser-border hover:bg-browser-text-secondary hover:text-browser-bg disabled:bg-browser-bg disabled:text-browser-text-secondary rounded transition-colors"
-            title="Go Back"
-          >
-            ←
-          </button>
-          <button
-            type="button"
-            onClick={handleForward}
-            disabled={!canGoForward || !connected}
-            className="p-2 bg-browser-border hover:bg-browser-text-secondary hover:text-browser-bg disabled:bg-browser-bg disabled:text-browser-text-secondary rounded transition-colors"
-            title="Go Forward"
-          >
-            →
-          </button>
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={!connected}
-            className="p-2 bg-browser-border hover:bg-browser-text-secondary hover:text-browser-bg disabled:bg-browser-bg disabled:text-browser-text-secondary rounded transition-colors"
-            title="Refresh Page"
-          >
-            ↻
-          </button>
-          
-          {/* URL Bar */}
-          <input
-            type="url"
-            placeholder="Enter URL (e.g., https://google.com)"
-            className="url-input flex-1 px-3 py-2 bg-browser-bg border border-browser-border rounded text-browser-text placeholder-browser-text-secondary focus:outline-none focus:ring-2 focus:ring-browser-primary"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            onFocus={(e) => e.target.select()}
-          />
-          <button
-            type="submit"
-            disabled={!connected}
-            className="px-4 py-2 bg-browser-primary hover:bg-browser-primary/90 disabled:bg-browser-border disabled:cursor-not-allowed rounded text-white font-medium transition-colors"
-          >
-            Go
-          </button>
-        </form>
-        
-        {/* Loading Progress Bar */}
-        {isLoading && (
-          <div className="mt-2">
-            <div className="w-full bg-browser-border rounded-full h-1">
-              <div className="bg-browser-primary h-1 rounded-full animate-pulse" style={{ width: '60%' }}></div>
-            </div>
-          </div>
-        )}
-        
-        {/* Status */}
-        <div className="mt-2 text-sm">
-          Status: <span className={connected ? 'text-browser-success' : 'text-browser-error'}>
-            {connected ? (isLoading ? 'Loading...' : 'Connected') : 'Disconnected'}
-          </span>
-        </div>
-      </div>
-
-      {/* Browser Display */}
-      <div className="flex-1 flex">
-        {/* Main Viewport */}
+    <div className="h-full flex bg-black text-white">
+      {/* Hidden browser viewport but keep backend connection */}
+      <div className="hidden">
         <BrowserViewport 
           frame={frame}
           connected={connected}
@@ -187,11 +119,16 @@ export default function Browser() {
           onViewportDoubleClick={(xNorm, yNorm) => doubleClick(xNorm, yNorm)}
           onViewportScroll={(deltaY) => scroll(deltaY)}
         />
+      </div>
 
-        {/* Chatbot Panel */}
-        <div className="w-80">
-          <Chatbot className="h-full" />
-        </div>
+      {/* Main chatbot interface */}
+      <main className="flex-1 bg-black">
+        <Chatbot className="h-full" />
+      </main>
+      
+      {/* Right side wishlist canvas */}
+      <div className="w-80">
+        <WishlistCanvas />
       </div>
     </div>
   );
