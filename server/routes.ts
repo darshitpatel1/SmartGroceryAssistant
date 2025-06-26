@@ -102,8 +102,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const x = xNorm * viewport.width;
           const y = yNorm * viewport.height;
           
-          // Move mouse to position first, then click
+          // Move mouse to position first, then click with more delay
           await page.mouse.move(x, y);
+          await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
+          
+          // Try to interact with the element properly
+          await page.evaluate((x, y) => {
+            const element = document.elementFromPoint(x, y) as HTMLElement;
+            if (element) {
+              const tagName = element.tagName.toLowerCase();
+              
+              // Focus input fields
+              if (tagName === 'input' || tagName === 'textarea' || 
+                  element.contentEditable === 'true') {
+                element.focus();
+                // Trigger click event
+                element.click();
+              }
+              // Handle clickable elements
+              else if (tagName === 'a' || tagName === 'button' || 
+                      element.onclick || element.getAttribute('onclick') ||
+                      element.closest('a, button') ||
+                      element.getAttribute('role') === 'button') {
+                element.click();
+              }
+              // Handle any element with click handlers
+              else {
+                const clickableParent = element.closest('[onclick], [role="button"], [role="link"], a, button');
+                if (clickableParent) {
+                  (clickableParent as HTMLElement).click();
+                } else {
+                  element.click();
+                }
+              }
+            }
+          }, x, y);
+          
           await page.mouse.click(x, y);
           console.log(`Clicked at: ${x}, ${y}`);
         }
@@ -131,15 +165,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             const tagName = element.tagName.toLowerCase();
             const style = window.getComputedStyle(element);
+            const htmlElement = element as HTMLElement;
             
             // Check if element is clickable
             if (tagName === 'a' || tagName === 'button' || 
-                element.onclick || element.getAttribute('onclick') ||
+                (htmlElement as any).onclick || element.getAttribute('onclick') ||
                 style.cursor === 'pointer' || element.closest('a, button') ||
-                element.getAttribute('role') === 'button') {
+                element.getAttribute('role') === 'button' ||
+                element.getAttribute('role') === 'link' ||
+                style.cursor.includes('pointer')) {
               return 'pointer';
             } else if (tagName === 'input' || tagName === 'textarea' || 
-                      element.contentEditable === 'true') {
+                      (htmlElement as any).contentEditable === 'true' ||
+                      element.getAttribute('contenteditable') === 'true') {
               return 'text';
             }
             return 'default';

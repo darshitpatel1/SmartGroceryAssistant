@@ -44,11 +44,20 @@ export default function Browser() {
     click(xNorm, yNorm);
   };
 
+  const throttleTimeout = useRef<NodeJS.Timeout>();
+  
   const handleMouseMove = (e: React.MouseEvent<HTMLImageElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const xNorm = (e.clientX - rect.left) / rect.width;
     const yNorm = (e.clientY - rect.top) / rect.height;
-    mousemove(xNorm, yNorm);
+    
+    // Throttle mouse move events to avoid overwhelming the server
+    if (throttleTimeout.current) {
+      clearTimeout(throttleTimeout.current);
+    }
+    throttleTimeout.current = setTimeout(() => {
+      mousemove(xNorm, yNorm);
+    }, 50);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
