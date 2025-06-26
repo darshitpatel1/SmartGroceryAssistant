@@ -4,7 +4,7 @@ import { useSocket } from '@/hooks/use-socket';
 export default function Browser() {
   const [url, setUrl] = useState('');
   const [zoomLevel, setZoomLevel] = useState(1);
-  const { connected, frame, currentUrl, canGoBack, canGoForward, browse, click, type, scroll, pressKey, zoom, navigate } = useSocket();
+  const { connected, frame, currentUrl, canGoBack, canGoForward, cursorStyle, browse, click, mousemove, type, scroll, pressKey, zoom, navigate } = useSocket();
   const viewportRef = useRef<HTMLDivElement>(null);
 
   const handleBrowse = (e: React.FormEvent) => {
@@ -45,9 +45,10 @@ export default function Browser() {
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLImageElement>) => {
-    // Add visual feedback for clickable areas by changing cursor
-    const target = e.currentTarget;
-    target.style.cursor = 'pointer';
+    const rect = e.currentTarget.getBoundingClientRect();
+    const xNorm = (e.clientX - rect.left) / rect.width;
+    const yNorm = (e.clientY - rect.top) / rect.height;
+    mousemove(xNorm, yNorm);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -204,7 +205,8 @@ export default function Browser() {
                 <img
                   src={`data:image/jpeg;base64,${frame}`}
                   alt="Browser"
-                  className="w-full h-full object-contain cursor-pointer"
+                  className="w-full h-full object-contain"
+                  style={{ cursor: cursorStyle }}
                   onClick={handleViewportClick}
                   onMouseMove={handleMouseMove}
                   draggable={false}

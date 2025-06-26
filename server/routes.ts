@@ -101,11 +101,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (viewport) {
           const x = xNorm * viewport.width;
           const y = yNorm * viewport.height;
+          
+          // Move mouse to position first, then click
+          await page.mouse.move(x, y);
           await page.mouse.click(x, y);
           console.log(`Clicked at: ${x}, ${y}`);
         }
       } catch (error) {
         console.error("Click error:", error);
+      }
+    });
+
+    socket.on("mousemove", async ({ xNorm, yNorm }: { xNorm: number; yNorm: number }) => {
+      if (!page) return;
+      
+      try {
+        const viewport = page.viewport();
+        if (viewport) {
+          const x = xNorm * viewport.width;
+          const y = yNorm * viewport.height;
+          
+          // Move mouse and get cursor style
+          await page.mouse.move(x, y);
+          
+          // Get the element under cursor and check if it's clickable
+          const cursorStyle = await page.evaluate((x, y) => {
+            const element = document.elementFromPoint(x, y);
+            if (!element) return 'default';
+            
+            const tagName = element.tagName.toLowerCase();
+            const style = window.getComputedStyle(element);
+            
+            // Check if element is clickable
+            if (tagName === 'a' || tagName === 'button' || 
+                element.onclick || element.getAttribute('onclick') ||
+                style.cursor === 'pointer' || element.closest('a, button') ||
+                element.getAttribute('role') === 'button') {
+              return 'pointer';
+            } else if (tagName === 'input' || tagName === 'textarea' || 
+                      element.contentEditable === 'true') {
+              return 'text';
+            }
+            return 'default';
+          }, x, y);
+          
+          socket.emit("cursor_change", { cursor: cursorStyle });
+        }
+      } catch (error) {
+        console.error("Mouse move error:", error);
       }
     });
 
