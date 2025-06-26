@@ -44,6 +44,12 @@ export default function Browser() {
     click(xNorm, yNorm);
   };
 
+  const handleMouseMove = (e: React.MouseEvent<HTMLImageElement>) => {
+    // Add visual feedback for clickable areas by changing cursor
+    const target = e.currentTarget;
+    target.style.cursor = 'pointer';
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -127,9 +133,11 @@ export default function Browser() {
     <div className="h-screen flex flex-col bg-gray-900 text-white">
       {/* Navigation Bar */}
       <div className="p-4 bg-gray-800 border-b border-gray-700">
-        <div className="flex items-center gap-3 mb-3">
+        {/* Combined Navigation and URL Bar */}
+        <form onSubmit={handleBrowse} className="flex items-center gap-2">
           {/* Navigation Buttons */}
           <button
+            type="button"
             onClick={handleBack}
             disabled={!canGoBack || !connected}
             className="p-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-500 rounded transition-colors"
@@ -138,6 +146,7 @@ export default function Browser() {
             ←
           </button>
           <button
+            type="button"
             onClick={handleForward}
             disabled={!canGoForward || !connected}
             className="p-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-500 rounded transition-colors"
@@ -146,6 +155,7 @@ export default function Browser() {
             →
           </button>
           <button
+            type="button"
             onClick={handleRefresh}
             disabled={!connected}
             className="p-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-500 rounded transition-colors"
@@ -153,15 +163,13 @@ export default function Browser() {
           >
             ↻
           </button>
-        </div>
-        
-        {/* URL Bar */}
-        <form onSubmit={handleBrowse} className="flex gap-2">
+          
+          {/* URL Bar */}
           <input
             type="url"
             placeholder="Enter URL (e.g., https://google.com)"
             className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            value={url}
+            value={currentUrl || url}
             onChange={(e) => setUrl(e.target.value)}
           />
           <button
@@ -174,17 +182,10 @@ export default function Browser() {
         </form>
         
         {/* Status */}
-        <div className="mt-2 flex items-center justify-between text-sm">
-          <span>
-            Status: <span className={connected ? 'text-green-400' : 'text-red-400'}>
-              {connected ? 'Connected' : 'Disconnected'}
-            </span>
+        <div className="mt-2 text-sm">
+          Status: <span className={connected ? 'text-green-400' : 'text-red-400'}>
+            {connected ? 'Connected' : 'Disconnected'}
           </span>
-          {currentUrl && (
-            <span className="text-gray-400 truncate max-w-md">
-              Current: {currentUrl}
-            </span>
-          )}
         </div>
       </div>
 
@@ -203,8 +204,9 @@ export default function Browser() {
                 <img
                   src={`data:image/jpeg;base64,${frame}`}
                   alt="Browser"
-                  className="w-full h-full object-contain cursor-crosshair"
+                  className="w-full h-full object-contain cursor-pointer"
                   onClick={handleViewportClick}
+                  onMouseMove={handleMouseMove}
                   draggable={false}
                 />
               </div>

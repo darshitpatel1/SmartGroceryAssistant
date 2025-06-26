@@ -68,6 +68,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await cdp!.send("Page.screencastFrameAck", { sessionId });
         });
 
+        // Listen for URL changes
+        page.on('framenavigated', (frame) => {
+          if (frame === page.mainFrame() && page) {
+            const currentUrl = page.url();
+            console.log("URL changed to:", currentUrl);
+            page.evaluate(() => window.history.length > 1).then(canGoBack => {
+              socket.emit("url_changed", { url: currentUrl, canGoBack, canGoForward: false });
+            }).catch(() => {
+              socket.emit("url_changed", { url: currentUrl, canGoBack: false, canGoForward: false });
+            });
+          }
+        });
+
         // Get current URL and navigation state
         const currentUrl = page.url();
         const canGoBack = await page.evaluate(() => window.history.length > 1);

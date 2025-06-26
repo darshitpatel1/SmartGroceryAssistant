@@ -55,6 +55,13 @@ export function useSocket(): UseSocketReturn {
       setCanGoForward(forward);
     });
 
+    socket.on('url_changed', ({ url, canGoBack: back, canGoForward: forward }: { url: string; canGoBack: boolean; canGoForward: boolean }) => {
+      console.log('URL changed:', url);
+      setCurrentUrl(url);
+      setCanGoBack(back);
+      setCanGoForward(forward);
+    });
+
     socket.on('error', ({ message }: { message: string }) => {
       console.error('Socket error:', message);
     });
