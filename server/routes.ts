@@ -54,83 +54,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
         page = await browser.newPage();
         await page.setViewport({ width: 1280, height: 720 });
         
-        // Auto-dismiss popups and enhance input focusing for Flipp.com
+        // Enhanced popup handling and input focusing for better user experience
         await page.evaluateOnNewDocument(() => {
-          // Auto-click Accept All and dismiss popups
+          // More aggressive popup and cookie consent handling
           const autoClickPopups = () => {
-            // Cookie consent "Accept All"
-            const acceptButtons = document.querySelectorAll('button');
+            // Enhanced cookie consent detection
+            const cookieSelectors = [
+              'button:contains("Accept All")',
+              'button:contains("Accept all")', 
+              'button:contains("ACCEPT ALL")',
+              '[data-testid*="accept"]',
+              '[id*="accept"]',
+              '[class*="accept"]',
+              'button[aria-label*="accept" i]'
+            ];
+            
+            // Try multiple methods to find and click accept buttons
+            const acceptButtons = document.querySelectorAll('button, [role="button"], a');
             acceptButtons.forEach(btn => {
-              const text = btn.textContent?.toLowerCase() || '';
-              if (text.includes('accept all') || text.includes('accept')) {
-                console.log('Auto-clicking Accept All button');
-                (btn as HTMLButtonElement).click();
+              const element = btn as HTMLElement;
+              const text = element.textContent?.toLowerCase().trim() || '';
+              const ariaLabel = element.getAttribute('aria-label')?.toLowerCase() || '';
+              const id = element.id?.toLowerCase() || '';
+              const className = element.className?.toLowerCase() || '';
+              
+              if ((text.includes('accept all') || text.includes('accept') || 
+                   ariaLabel.includes('accept') || id.includes('accept') || 
+                   className.includes('accept')) && 
+                  element.offsetParent !== null) { // Check if visible
+                console.log('Auto-clicking Accept button:', text || ariaLabel || id);
+                element.click();
+                element.dispatchEvent(new Event('click', { bubbles: true }));
               }
             });
             
-            // App download popup close buttons
-            const closeSelectors = ['button', '[role="button"]', '.close', '[aria-label*="close" i]'];
-            closeSelectors.forEach(selector => {
-              const buttons = document.querySelectorAll(selector);
-              buttons.forEach(btn => {
-                const element = btn as HTMLElement;
-                const ariaLabel = element.getAttribute('aria-label')?.toLowerCase() || '';
-                const className = element.className?.toLowerCase() || '';
-                if (ariaLabel.includes('close') || className.includes('close') || 
-                    element.textContent?.includes('×') || element.textContent?.includes('✕')) {
-                  console.log('Auto-clicking close button');
-                  element.click();
+            // Remove overlays and modals that block interaction
+            const overlaySelectors = [
+              '[class*="overlay"]', '[class*="modal"]', '[class*="popup"]',
+              '[style*="position: fixed"]', '[style*="z-index"]',
+              '[data-testid*="overlay"]', '[data-testid*="modal"]'
+            ];
+            
+            overlaySelectors.forEach(selector => {
+              const elements = document.querySelectorAll(selector);
+              elements.forEach(el => {
+                const element = el as HTMLElement;
+                const style = getComputedStyle(element);
+                if (style.position === 'fixed' && parseInt(style.zIndex) > 100) {
+                  const text = element.textContent?.toLowerCase() || '';
+                  if (text.includes('cookie') || text.includes('accept') || text.includes('consent') ||
+                      text.includes('privacy') || text.includes('gdpr')) {
+                    console.log('Removing blocking overlay');
+                    element.remove();
+                  }
                 }
               });
             });
-            
-            // Remove download popups by hiding them
-            const popups = document.querySelectorAll('[class*="popup"], [class*="modal"], [class*="overlay"]');
-            popups.forEach(popup => {
-              const element = popup as HTMLElement;
-              if (element.textContent?.includes('Download') || element.textContent?.includes('app')) {
-                element.style.display = 'none';
-                console.log('Auto-hiding app download popup');
+          };
+          
+          // Enhanced input focusing with better event handling
+          const setupInputFocusing = () => {
+            document.addEventListener('click', (e) => {
+              const target = e.target as HTMLElement;
+              
+              // Check if clicked element is or contains an input
+              let inputElement = null;
+              if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+                inputElement = target as HTMLInputElement;
+              } else {
+                inputElement = target.querySelector('input, textarea') as HTMLInputElement;
+              }
+              
+              if (inputElement && !inputElement.disabled && !inputElement.readOnly) {
+                setTimeout(() => {
+                  inputElement.focus();
+                  inputElement.click();
+                  
+                  // Dispatch focus events
+                  inputElement.dispatchEvent(new Event('focus', { bubbles: true }));
+                  inputElement.dispatchEvent(new Event('focusin', { bubbles: true }));
+                  
+                  console.log('Auto-focused input:', inputElement.placeholder || inputElement.name || inputElement.id);
+                }, 50);
               }
             });
           };
           
-          // Run popup dismissal immediately and on content changes
-          setTimeout(autoClickPopups, 1000);
-          setTimeout(autoClickPopups, 3000);
+          // Run all setups
+          setTimeout(autoClickPopups, 500);
+          setTimeout(autoClickPopups, 2000);
           setTimeout(autoClickPopups, 5000);
+          setTimeout(setupInputFocusing, 100);
           
-          // Enhanced search input focusing
-          const setupSearchInputs = () => {
-            const searchInputs = document.querySelectorAll('input[placeholder*="search" i], input[placeholder*="Search" i], input[placeholder*="flyers" i]');
-            searchInputs.forEach(input => {
-              const element = input as HTMLInputElement;
-              if (!element.dataset.focusSetup) {
-                element.dataset.focusSetup = 'true';
-                element.addEventListener('click', () => {
-                  setTimeout(() => {
-                    element.focus();
-                    element.select();
-                  }, 10);
-                });
-              }
-            });
-          };
-          
-          // Setup inputs and monitor for new ones
+          // Setup mutation observer for dynamic content
           document.addEventListener('DOMContentLoaded', () => {
-            setupSearchInputs();
+            setupInputFocusing();
             autoClickPopups();
             
             const observer = new MutationObserver(() => {
-              setupSearchInputs();
               autoClickPopups();
             });
             observer.observe(document.body, { childList: true, subtree: true });
           });
-          
-          // Immediate setup
-          setupSearchInputs();
         });
         
         // Simplified loading tracking
@@ -148,6 +173,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Navigate to URL with faster loading
         await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15000 });
+        
+        // Additional aggressive popup removal after page load
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        await page.evaluate(() => {
+          // Specific Flipp.com cookie banner removal
+          const selectors = [
+            '[data-testid="cookie-banner"]',
+            '[class*="cookie"]',
+            '[class*="consent"]',
+            '[id*="cookie"]',
+            '[id*="consent"]',
+            'div[style*="position: fixed"][style*="z-index"]'
+          ];
+          
+          selectors.forEach(selector => {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(el => {
+              const element = el as HTMLElement;
+              if (element.textContent?.toLowerCase().includes('accept') ||
+                  element.textContent?.toLowerCase().includes('cookie') ||
+                  element.textContent?.toLowerCase().includes('consent')) {
+                console.log('Removing cookie banner:', selector);
+                element.remove();
+              }
+            });
+          });
+          
+          // Remove any fixed position overlays
+          const allElements = document.querySelectorAll('*');
+          allElements.forEach(el => {
+            const element = el as HTMLElement;
+            const style = getComputedStyle(element);
+            if (style.position === 'fixed' && 
+                parseInt(style.zIndex) > 1000 &&
+                element.offsetHeight > 100) {
+              const text = element.textContent?.toLowerCase() || '';
+              if (text.includes('cookie') || text.includes('accept') || text.includes('consent')) {
+                console.log('Removing fixed overlay');
+                element.remove();
+              }
+            }
+          });
+        });
         
         // Set up CDP for screen capture
         cdp = await page.target().createCDPSession();
@@ -189,10 +257,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const viewport = page.viewport();
         if (viewport) {
-          const x = xNorm * viewport.width;
-          const y = yNorm * viewport.height;
+          // Ensure coordinates are properly bounded
+          const boundedXNorm = Math.max(0, Math.min(1, xNorm));
+          const boundedYNorm = Math.max(0, Math.min(1, yNorm));
           
-          console.log(`Clicking at: ${x}, ${y} (normalized: ${xNorm}, ${yNorm})`);
+          const x = Math.round(boundedXNorm * viewport.width);
+          const y = Math.round(boundedYNorm * viewport.height);
+          
+          console.log(`Clicking at: ${x}, ${y} (normalized: ${boundedXNorm}, ${boundedYNorm})`);
+          
+          // Get accurate page dimensions for coordinate mapping
+          const pageInfo = await page.evaluate(() => {
+            return {
+              documentWidth: document.documentElement.scrollWidth,
+              documentHeight: document.documentElement.scrollHeight,
+              viewportWidth: window.innerWidth,
+              viewportHeight: window.innerHeight,
+              scrollX: window.scrollX,
+              scrollY: window.scrollY
+            };
+          });
+          
+          // Adjust coordinates for any scaling difference
+          const scaleX = pageInfo.viewportWidth / viewport.width;
+          const scaleY = pageInfo.viewportHeight / viewport.height;
+          
+          const adjustedX = Math.round(x * scaleX) + pageInfo.scrollX;
+          const adjustedY = Math.round(y * scaleY) + pageInfo.scrollY;
+          
+          console.log(`Adjusted coordinates: ${adjustedX}, ${adjustedY} (scale: ${scaleX}, ${scaleY})`);
+          
+          // Use the properly scaled coordinates for element detection
+          const finalX = adjustedX;
+          const finalY = adjustedY;
           
           // Enhanced element detection with better input field recognition
           const elementInfo = await page.evaluate((clickX, clickY) => {
@@ -265,14 +362,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
             
             return { type: 'generic', tagName, className };
-          }, x, y);
+          }, finalX, finalY);
           
           // Handle different element types with appropriate interactions
           switch (elementInfo.type) {
             case 'input':
             case 'input_container':
-              // Enhanced input focusing with multiple attempts
-              await page.mouse.click(x, y);
+              // Enhanced input focusing with multiple attempts using corrected coordinates
+              await page.mouse.click(finalX, finalY);
               await new Promise(resolve => setTimeout(resolve, 150));
               
               const inputResult = await page.evaluate((clickX, clickY) => {
@@ -344,11 +441,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 }
                 
                 return { success: false, element: targetElement?.tagName || 'none' };
-              }, x, y);
+              }, finalX, finalY);
               
               // Double-click for stubborn inputs
               if (!inputResult.success) {
-                await page.mouse.click(x, y, { clickCount: 2 });
+                await page.mouse.click(finalX, finalY, { clickCount: 2 });
                 await new Promise(resolve => setTimeout(resolve, 100));
               }
               
@@ -360,8 +457,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               break;
               
             case 'dropdown':
-              // For dropdowns, try multiple interaction methods
-              await page.mouse.click(x, y);
+              // For dropdowns, try multiple interaction methods with corrected coordinates
+              await page.mouse.click(finalX, finalY);
               await new Promise(resolve => setTimeout(resolve, 200));
               
               // Check if dropdown opened, if not try hover + click
@@ -371,24 +468,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
               
               if (!dropdownOpened) {
-                await page.mouse.move(x, y);
+                await page.mouse.move(finalX, finalY);
                 await new Promise(resolve => setTimeout(resolve, 100));
-                await page.mouse.click(x, y);
+                await page.mouse.click(finalX, finalY);
               }
               
               socket.emit("element_interacted", { type: 'dropdown', success: true });
               break;
               
             case 'button':
-              // For buttons, simple click with small delay
-              await page.mouse.click(x, y);
+              // For buttons, simple click with small delay using corrected coordinates
+              await page.mouse.click(finalX, finalY);
               await new Promise(resolve => setTimeout(resolve, 150));
               socket.emit("element_interacted", { type: 'button', success: true });
               break;
               
             default:
-              // Generic click for other elements
-              await page.mouse.click(x, y);
+              // Generic click for other elements using corrected coordinates
+              await page.mouse.click(finalX, finalY);
               await new Promise(resolve => setTimeout(resolve, 100));
               socket.emit("element_interacted", { type: 'generic', success: true });
           }
