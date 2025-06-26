@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, MessageCircle, X, Bot, User, Type, Focus } from "lucide-react";
+import { Send, MessageCircle, X, Bot, User, Type, Focus, MousePointer, Keyboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -205,20 +205,45 @@ export function Chatbot({ className }: ChatbotProps) {
         </div>
       </ScrollArea>
 
-      {/* Input */}
-      <div className="p-4 border-t border-browser-border">
+      {/* Controls */}
+      <div className="p-4 border-t border-browser-border space-y-3">
+        {/* Browser Interaction Buttons */}
+        <div className="flex gap-2">
+          <Button
+            onClick={focusInput}
+            disabled={!connected}
+            size="sm"
+            variant="outline"
+            className="flex-1 text-xs"
+          >
+            <MousePointer className="w-3 h-3 mr-1" />
+            Focus Input
+          </Button>
+          <Button
+            onClick={() => setTypeMode(!typeMode)}
+            size="sm"
+            variant={typeMode ? "default" : "outline"}
+            className="flex-1 text-xs"
+          >
+            <Keyboard className="w-3 h-3 mr-1" />
+            Type Mode
+          </Button>
+        </div>
+        
+        {/* Input */}
         <div className="flex gap-2">
           <Input
             ref={inputRef}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Type your message..."
-            className="flex-1 bg-browser-bg border-browser-border focus:ring-browser-primary"
+            placeholder={typeMode ? "Type text to browser..." : "Chat message..."}
+            className="flex-1 bg-browser-bg border-browser-border focus:ring-browser-primary text-sm"
           />
           <Button
             onClick={handleSend}
             disabled={!inputValue.trim()}
+            size="sm"
             className="bg-browser-primary hover:bg-browser-primary/90 text-white"
           >
             <Send className="w-4 h-4" />

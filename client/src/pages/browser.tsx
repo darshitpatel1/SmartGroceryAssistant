@@ -144,8 +144,9 @@ export default function Browser() {
             type="url"
             placeholder="Enter URL (e.g., https://google.com)"
             className="flex-1 px-3 py-2 bg-browser-bg border border-browser-border rounded text-browser-text placeholder-browser-text-secondary focus:outline-none focus:ring-2 focus:ring-browser-primary"
-            value={currentUrl || url}
+            value={url}
             onChange={(e) => setUrl(e.target.value)}
+            onFocus={(e) => e.target.select()}
           />
           <button
             type="submit"
