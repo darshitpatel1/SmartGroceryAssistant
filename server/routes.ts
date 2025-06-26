@@ -910,6 +910,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         console.log("performFlippSearch: About to navigate to", flippUrl);
         
+        // Set up temporary frame streaming for this AI search
+        let client: any = null;
+        try {
+          client = await page.target().createCDPSession();
+          await client.send('Page.enable');
+          await client.send('Page.startScreencast', {
+            format: 'jpeg',
+            quality: 80,
+            maxWidth: 1280,
+            maxHeight: 720,
+            everyNthFrame: 3
+          });
+
+          const frameHandler = (event: any) => {
+            try {
+              socket.emit('frame', event.data);
+              if (event.metadata?.sessionId) {
+                client.send('Page.screencastFrameAck', { sessionId: event.metadata.sessionId }).catch(() => {});
+              }
+            } catch (error) {
+              // Ignore frame errors
+            }
+          };
+
+          client.on('Page.screencastFrame', frameHandler);
+          console.log("performFlippSearch: Frame streaming started for AI navigation");
+        } catch (error) {
+          console.log("performFlippSearch: Frame streaming failed, continuing without live view");
+        }
+        
         // Navigate with proper event handling
         await page.goto(flippUrl, { 
           waitUntil: 'networkidle2',
@@ -936,6 +966,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         socket.emit("loading", { status: "complete" });
 
+        // Take an immediate screenshot after navigation to show the page
+        const navigationScreenshot = await page.screenshot({ 
+          encoding: 'base64',
+          type: 'jpeg',
+          quality: 80
+        });
+        socket.emit('frame', navigationScreenshot);
+
         // Wait for page to load and content to appear
         socket.emit("ai_response", { 
           message: `📄 Page loaded, waiting for search results to appear...`, 
@@ -954,6 +992,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           type: 'jpeg',
           quality: 80
         });
+
+        // Send the screenshot to the browser viewport so user can see what we're analyzing
+        socket.emit('frame', screenshot);
 
         // Notify AI analysis start
         socket.emit("ai_response", { 
@@ -983,6 +1024,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             message: `No clear price information found for ${item}. The store might be out of stock or the page didn't load properly.`, 
             type: 'info' 
           });
+        }
+
+        // Clean up frame streaming after analysis
+        if (client) {
+          try {
+            await client.send('Page.stopScreencast');
+            await client.detach();
+            console.log("performFlippSearch: Frame streaming stopped");
+          } catch (error) {
+            // Ignore cleanup errors
+          }
         }
 
       } catch (error) {
