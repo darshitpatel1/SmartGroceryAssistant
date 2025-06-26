@@ -11,8 +11,10 @@ export interface ShoppingItem {
 
 export interface PriceAnalysis {
   item: string;
-  cheapestStore: string;
+  brand?: string;
+  store: string;
   price: string;
+  packageSize?: string;
   savings?: string;
   points?: string;
   confidence: number;
@@ -107,7 +109,7 @@ Always respond in a friendly, helpful manner and ask clarifying questions when n
             content: [
               {
                 type: "text",
-                text: `Analyze this Flipp.com search result screenshot for "${item}". Identify all visible prices, store names (Metro, Fortinos, Loblaws, etc.), the cheapest option, promotional offers, and package sizes. Respond with JSON in this format: {"analyses": [{"item": "item name", "cheapestStore": "store name", "price": "$X.XX", "savings": "Save $X.XX", "points": "earn X points", "confidence": 0.9}], "summary": "Brief summary", "nextSteps": "What to do next"}`
+                text: `Analyze this Flipp.com search result screenshot for "${item}". Find ALL visible deals from different stores. For each deal, identify: store name (Metro, Fortinos, Loblaws, No Frills, etc.), brand name, exact price, package size, and any savings/promotions. Return ALL deals found, not just the cheapest. Respond with JSON in this format: {"analyses": [{"item": "item name", "brand": "brand name", "store": "store name", "price": "$X.XX", "packageSize": "size", "savings": "Save $X.XX", "points": "earn X points", "confidence": 0.9}], "summary": "Found X deals across Y stores", "nextSteps": "Compare prices to find best value"}`
               },
               {
                 type: "image_url",

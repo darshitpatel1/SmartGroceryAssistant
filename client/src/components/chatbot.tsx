@@ -130,18 +130,29 @@ export function Chatbot({ className }: ChatbotProps) {
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-2">
               <ShoppingCart className="w-4 h-4 text-green-600" />
-              <Badge variant="secondary" className="bg-green-100 text-green-800">Best Deal</Badge>
+              <Badge variant="secondary" className="bg-green-100 text-green-800">
+                Deal {message.data.dealIndex || ''}/{message.data.totalDeals || ''}
+              </Badge>
             </div>
-            <h4 className="font-semibold text-green-800 dark:text-green-200">{message.data.item}</h4>
-            <p className="text-sm text-green-700 dark:text-green-300">
-              <span className="font-bold">{message.data.price}</span> at {message.data.cheapestStore}
-            </p>
-            {message.data.savings && (
-              <p className="text-xs text-green-600 dark:text-green-400">{message.data.savings}</p>
-            )}
-            {message.data.points && (
-              <p className="text-xs text-green-600 dark:text-green-400">{message.data.points}</p>
-            )}
+            <div className="space-y-1">
+              {message.data.brand && (
+                <h4 className="font-semibold text-green-800 dark:text-green-200">{message.data.brand} {message.data.item}</h4>
+              )}
+              {!message.data.brand && (
+                <h4 className="font-semibold text-green-800 dark:text-green-200">{message.data.item}</h4>
+              )}
+              <p className="text-sm text-green-700 dark:text-green-300">
+                <span className="font-bold">{message.data.price}</span>
+                {message.data.packageSize && <span className="text-xs ml-1">({message.data.packageSize})</span>}
+                <span className="ml-1">at <span className="font-medium">{message.data.store}</span></span>
+              </p>
+              {message.data.savings && (
+                <p className="text-xs text-green-600 dark:text-green-400 font-medium">{message.data.savings}</p>
+              )}
+              {message.data.points && (
+                <p className="text-xs text-green-600 dark:text-green-400">{message.data.points}</p>
+              )}
+            </div>
           </CardContent>
         </Card>
       );

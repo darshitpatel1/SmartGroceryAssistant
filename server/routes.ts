@@ -925,12 +925,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           const frameHandler = (event: any) => {
             try {
+              console.log("performFlippSearch: Sending frame to browser viewport");
               socket.emit('frame', event.data);
               if (event.metadata?.sessionId) {
                 client.send('Page.screencastFrameAck', { sessionId: event.metadata.sessionId }).catch(() => {});
               }
             } catch (error) {
-              // Ignore frame errors
+              console.log("performFlippSearch: Frame error:", error);
             }
           };
 
@@ -976,7 +977,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Wait for page to load and content to appear
         socket.emit("ai_response", { 
-          message: `📄 Page loaded, waiting for search results to appear...`, 
+          message: `📄 Page loaded at ${currentUrl}, waiting for search results...`, 
           type: 'info' 
         });
         await new Promise(resolve => setTimeout(resolve, 3000));
@@ -1008,16 +1009,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
           [screenshot as string]
         );
 
-        // Send deal information back to client
+        // Send all deals found to client
         if (analysis.analyses && analysis.analyses.length > 0) {
-          const bestDeal = analysis.analyses[0];
-          socket.emit("deal_found", {
-            item: bestDeal.item,
-            cheapestStore: bestDeal.cheapestStore,
-            price: bestDeal.price,
-            savings: bestDeal.savings,
-            points: bestDeal.points,
-            confidence: bestDeal.confidence
+          // Send analysis summary first
+          socket.emit("ai_response", { 
+            message: analysis.summary, 
+            type: 'analysis' 
+          });
+
+          // Send each deal as a separate message for better display
+          analysis.analyses.forEach((deal, index) => {
+            const dealMessage = `${deal.brand ? `${deal.brand} ` : ''}${deal.item} - ${deal.price}${deal.packageSize ? ` (${deal.packageSize})` : ''} at ${deal.store}${deal.savings ? ` - ${deal.savings}` : ''}${deal.points ? ` + ${deal.points}` : ''}`;
+            
+            socket.emit("deal_found", {
+              item: deal.item,
+              brand: deal.brand,
+              store: deal.store,
+              price: deal.price,
+              packageSize: deal.packageSize,
+              savings: deal.savings,
+              points: deal.points,
+              confidence: deal.confidence,
+              dealMessage: dealMessage,
+              dealIndex: index + 1,
+              totalDeals: analysis.analyses.length
+            });
           });
         } else {
           socket.emit("ai_response", { 
@@ -1259,7 +1275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (analysis.analyses.length > 0) {
             const bestDeal = analysis.analyses[0];
             socket.emit("ai_response", { 
-              response: `Best deal found: ${bestDeal.item} at ${bestDeal.cheapestStore} for ${bestDeal.price}${bestDeal.savings ? ` (${bestDeal.savings})` : ''}`, 
+              response: `Best deal found: ${bestDeal.item} at ${bestDeal.store} for ${bestDeal.price}${bestDeal.savings ? ` (${bestDeal.savings})` : ''}`, 
               type: 'deal',
               data: bestDeal
             });
