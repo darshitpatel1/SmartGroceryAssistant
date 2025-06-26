@@ -47,6 +47,12 @@ export default function Browser() {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (!connected) return;
 
+      // Don't capture keys when user is typing in input fields or textarea
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true') {
+        return;
+      }
+
       const modifiers: string[] = [];
       if (e.ctrlKey) modifiers.push('ctrl');
       if (e.shiftKey) modifiers.push('shift');
