@@ -262,10 +262,19 @@ export function Chatbot({ className }: ChatbotProps) {
       <div className="p-4 border-b border-browser-border">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Bot className="w-5 h-5 text-browser-primary" />
-            <h3 className="font-semibold text-browser-text">Browser Assistant</h3>
+            <ShoppingCart className="w-5 h-5 text-browser-primary" />
+            <h3 className="font-semibold text-browser-text">AI Shopping Assistant</h3>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShoppingMode(!shoppingMode)}
+              className={`h-8 w-8 p-0 hover:bg-browser-border ${shoppingMode ? 'bg-browser-primary text-white' : ''}`}
+              title={shoppingMode ? "Browser mode" : "Shopping mode"}
+            >
+              <ShoppingCart className="w-4 h-4" />
+            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -286,7 +295,9 @@ export function Chatbot({ className }: ChatbotProps) {
           </div>
         </div>
         <p className="text-xs text-browser-text-secondary mt-1">
-          {typeMode ? "Type mode: Text will be sent directly to browser" : "Chat mode: Ask me anything about browsing!"}
+          {typeMode ? "Type mode: Text will be sent directly to browser" : 
+           shoppingMode ? "Shopping mode: Find the best deals with AI price comparison" : 
+           "Chat mode: Ask me anything about browsing!"}
         </p>
       </div>
 
@@ -298,30 +309,7 @@ export function Chatbot({ className }: ChatbotProps) {
               key={message.id}
               className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              <div
-                className={`max-w-[80%] rounded-lg p-3 ${
-                  message.sender === 'user'
-                    ? 'bg-browser-primary text-white'
-                    : 'bg-browser-border text-browser-text'
-                }`}
-              >
-                <div className="flex items-start gap-2">
-                  {message.sender === 'bot' && (
-                    <Bot className="w-4 h-4 mt-0.5 flex-shrink-0 text-browser-primary" />
-                  )}
-                  {message.sender === 'user' && (
-                    <User className="w-4 h-4 mt-0.5 flex-shrink-0 text-white/80" />
-                  )}
-                  <div className="flex-1">
-                    <p className="text-sm">{message.text}</p>
-                    <p className={`text-xs mt-1 ${
-                      message.sender === 'user' ? 'text-white/70' : 'text-browser-text-secondary'
-                    }`}>
-                      {message.timestamp.toLocaleTimeString()}
-                    </p>
-                  </div>
-                </div>
-              </div>
+              {renderMessage(message)}
             </div>
           ))}
           
@@ -345,27 +333,93 @@ export function Chatbot({ className }: ChatbotProps) {
 
       {/* Controls */}
       <div className="p-4 border-t border-browser-border space-y-3">
-        {/* Type Mode Toggle */}
+        {/* Mode Toggles */}
         <div className="flex gap-2">
+          <Button
+            onClick={() => setShoppingMode(!shoppingMode)}
+            size="sm"
+            variant={shoppingMode ? "default" : "outline"}
+            className="flex-1 text-xs"
+          >
+            <ShoppingCart className="w-3 h-3 mr-1" />
+            {shoppingMode ? "Shopping Mode" : "Chat Mode"}
+          </Button>
           <Button
             onClick={() => setTypeMode(!typeMode)}
             size="sm"
             variant={typeMode ? "default" : "outline"}
-            className="w-full text-xs"
+            className="flex-1 text-xs"
           >
             <Type className="w-3 h-3 mr-1" />
-            {typeMode ? "Type Mode: ON" : "Chat Mode"}
+            {typeMode ? "Type Mode" : "Browser"}
           </Button>
         </div>
+
+        {/* Shopping Assistant Interface */}
+        {shoppingMode && (
+          <div className="space-y-3 p-3 bg-browser-bg rounded-lg border border-browser-border">
+            <div className="text-xs font-semibold text-browser-text flex items-center gap-2">
+              <MapPin className="w-3 h-3" />
+              Quick Setup
+            </div>
+            
+            {/* Postal Code Input */}
+            <div>
+              <Input
+                value={postalCode}
+                onChange={(e) => setPostalCode(e.target.value)}
+                placeholder="Enter postal code (e.g., M4P2B3)"
+                className="text-xs bg-browser-surface border-browser-border"
+              />
+            </div>
+
+            {/* Shopping List Input */}
+            <div>
+              <textarea
+                value={shoppingList}
+                onChange={(e) => setShoppingList(e.target.value)}
+                placeholder="Enter items (one per line):&#10;milk&#10;bread&#10;eggs"
+                rows={3}
+                className="w-full text-xs p-2 bg-browser-surface border border-browser-border rounded-md resize-none focus:ring-1 focus:ring-browser-primary"
+              />
+            </div>
+
+            {/* Quick Action Buttons */}
+            <div className="flex gap-2">
+              <Button
+                onClick={handlePriceSearch}
+                disabled={!postalCode.trim() || !shoppingList.trim()}
+                size="sm"
+                className="flex-1 text-xs bg-browser-primary hover:bg-browser-primary/90"
+              >
+                <Search className="w-3 h-3 mr-1" />
+                Find Best Prices
+              </Button>
+              <Button
+                onClick={handleStartShopping}
+                size="sm"
+                variant="outline"
+                className="text-xs"
+              >
+                <Bot className="w-3 h-3 mr-1" />
+                AI Help
+              </Button>
+            </div>
+          </div>
+        )}
         
-        {/* Input */}
+        {/* Regular Chat Input */}
         <div className="flex gap-2">
           <Input
             ref={inputRef}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder={typeMode ? "Type text to browser..." : "Chat message..."}
+            placeholder={
+              typeMode ? "Type text to browser..." : 
+              shoppingMode ? "Ask about prices, stores, or deals..." : 
+              "Chat message..."
+            }
             className="chatbot-input flex-1 bg-browser-bg border-browser-border focus:ring-browser-primary text-sm"
           />
           <Button

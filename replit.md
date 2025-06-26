@@ -95,6 +95,15 @@ This project is a real-time web browser interface that allows users to control a
 
 ## Recent Changes
 
+### AI Shopping Assistant Integration (June 26, 2025)
+- **AI-Powered Price Comparison**: Full OpenAI integration for intelligent price analysis using GPT-4o model
+- **Flipp.com Automation**: Automated browser navigation to search products and capture screenshots
+- **Smart Price Analysis**: AI analyzes product screenshots to identify cheapest prices across stores (Metro, Fortinos, Loblaws)
+- **Shopping List Processing**: Batch processing of multiple items with postal code-based location targeting
+- **Enhanced Chatbot UI**: Shopping mode interface with postal code input, shopping list textarea, and quick action buttons
+- **Real-time Progress Tracking**: Visual progress indicators and specialized message types for deals, analysis, and search status
+- **Screenshot Analysis**: Automated screenshot capture and AI-powered price extraction from Flipp.com search results
+
 ### Navigation and Chatbot Integration (June 26, 2025)
 - **Added Navigation Sidebar**: Left sidebar with collapsible navigation including Home, Browser, and Settings pages
 - **Integrated AI Chatbot**: Right-side chatbot interface in browser view with messaging capabilities
