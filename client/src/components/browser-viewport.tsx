@@ -62,6 +62,8 @@ export function BrowserViewport({
                 alt="Browser viewport"
                 className="w-full h-full object-contain cursor-crosshair"
                 onClick={handleImageClick}
+                onDoubleClick={handleImageDoubleClick}
+                onWheel={handleWheel}
               />
               {/* Viewport Scale Indicator */}
               <div className="absolute top-4 left-4 bg-black bg-opacity-50 rounded px-2 py-1 text-xs font-mono">

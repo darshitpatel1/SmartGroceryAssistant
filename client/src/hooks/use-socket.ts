@@ -99,6 +99,19 @@ export function useSocket(): UseSocketReturn {
       setIsLoading(false);
     });
 
+    // New interaction feedback events
+    socket.on('element_interacted', (result: any) => {
+      console.log('Element interaction:', result);
+    });
+
+    socket.on('text_typed', (result: any) => {
+      console.log('Text typed:', result);
+    });
+
+    socket.on('scroll_complete', (result: any) => {
+      console.log('Scroll complete:', result);
+    });
+
     return () => {
       socket.disconnect();
     };

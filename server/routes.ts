@@ -430,7 +430,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           // Try finding a scrollable container
-          const scrollableElements = document.querySelectorAll('*');
+          const scrollableElements = Array.from(document.querySelectorAll('*'));
           for (const element of scrollableElements) {
             const el = element as HTMLElement;
             if (el.scrollHeight > el.clientHeight && 

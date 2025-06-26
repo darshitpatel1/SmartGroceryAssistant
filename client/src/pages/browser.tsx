@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSocket } from '@/hooks/use-socket';
 import { Chatbot } from '@/components/chatbot';
+import { BrowserViewport } from '@/components/browser-viewport';
 
 export default function Browser() {
   const [url, setUrl] = useState('');
@@ -38,37 +39,7 @@ export default function Browser() {
     }
   }, [currentUrl]);
 
-  const handleViewportClick = (e: React.MouseEvent<HTMLImageElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const xNorm = (e.clientX - rect.left) / rect.width;
-    const yNorm = (e.clientY - rect.top) / rect.height;
-    click(xNorm, yNorm);
-  };
 
-  const handleViewportDoubleClick = (e: React.MouseEvent<HTMLImageElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const xNorm = (e.clientX - rect.left) / rect.width;
-    const yNorm = (e.clientY - rect.top) / rect.height;
-    doubleClick(xNorm, yNorm);
-  };
-
-
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      const target = e.target as HTMLTextAreaElement;
-      if (target.value.trim()) {
-        type(target.value + '\n');
-        target.value = '';
-      }
-    }
-  };
-
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    scroll(e.deltaY);
-  };
 
   const handleZoomChange = (newZoom: number) => {
     setZoomLevel(newZoom);
@@ -205,67 +176,13 @@ export default function Browser() {
       {/* Browser Display */}
       <div className="flex-1 flex">
         {/* Main Viewport */}
-        <div className="flex-1 p-4">
-          <div className="w-full h-full bg-browser-surface rounded border border-browser-border overflow-hidden relative">
-            {frame ? (
-              <div 
-                ref={viewportRef}
-                className="w-full h-full"
-                onWheel={handleWheel}
-                tabIndex={0}
-              >
-                <img
-                  src={`data:image/jpeg;base64,${frame}`}
-                  alt="Browser"
-                  className="w-full h-full object-contain cursor-pointer"
-                  onClick={handleViewportClick}
-                  onDoubleClick={handleViewportDoubleClick}
-                  draggable={false}
-                />
-              </div>
-            ) : (
-              <div className="h-full flex items-center justify-center text-browser-text-secondary">
-                {connected ? 'Enter a URL to start browsing' : 'Connecting...'}
-              </div>
-            )}
-            
-            {/* Zoom Controls */}
-            {frame && (
-              <div className="absolute top-4 right-4 flex gap-2 bg-browser-bg/90 rounded p-2 border border-browser-border">
-                <button
-                  onClick={() => handleZoomChange(0.5)}
-                  className="px-2 py-1 bg-browser-border hover:bg-browser-text-secondary hover:text-browser-bg rounded text-xs text-browser-text"
-                >
-                  50%
-                </button>
-                <button
-                  onClick={() => handleZoomChange(0.75)}
-                  className="px-2 py-1 bg-browser-border hover:bg-browser-text-secondary hover:text-browser-bg rounded text-xs text-browser-text"
-                >
-                  75%
-                </button>
-                <button
-                  onClick={() => handleZoomChange(1)}
-                  className="px-2 py-1 bg-browser-border hover:bg-browser-text-secondary hover:text-browser-bg rounded text-xs text-browser-text"
-                >
-                  100%
-                </button>
-                <button
-                  onClick={() => handleZoomChange(1.25)}
-                  className="px-2 py-1 bg-browser-border hover:bg-browser-text-secondary hover:text-browser-bg rounded text-xs text-browser-text"
-                >
-                  125%
-                </button>
-                <button
-                  onClick={() => handleZoomChange(1.5)}
-                  className="px-2 py-1 bg-browser-border hover:bg-browser-text-secondary hover:text-browser-bg rounded text-xs text-browser-text"
-                >
-                  150%
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+        <BrowserViewport 
+          frame={frame}
+          connected={connected}
+          onViewportClick={(xNorm, yNorm) => click(xNorm, yNorm)}
+          onViewportDoubleClick={(xNorm, yNorm) => doubleClick(xNorm, yNorm)}
+          onViewportScroll={(deltaY) => scroll(deltaY)}
+        />
 
         {/* Chatbot Panel */}
         <div className="w-80">
