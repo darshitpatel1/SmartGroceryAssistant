@@ -161,9 +161,11 @@ Always respond in a friendly, helpful manner and ask clarifying questions when n
     
     // Look for food items in the input
     for (const item of foodItems) {
-      if (input.includes(item)) {
+      // Use word boundaries to avoid matching partial words
+      const wordRegex = new RegExp(`\\b${item}\\b`, 'i');
+      if (wordRegex.test(input)) {
         // Extract quantity if present
-        const quantityRegex = new RegExp(`(\\d+)\\s*(?:x\\s*)?${item}|${item}\\s*(?:x\\s*)?(\\d+)`, 'i');
+        const quantityRegex = new RegExp(`(\\d+)\\s*(?:x\\s*)?\\b${item}\\b|\\b${item}\\b\\s*(?:x\\s*)?(\\d+)`, 'i');
         const match = userInput.match(quantityRegex);
         const quantity = match ? (match[1] || match[2]) : undefined;
         
@@ -174,7 +176,7 @@ Always respond in a friendly, helpful manner and ask clarifying questions when n
       }
     }
     
-    // Also parse line-by-line for explicit lists
+    // Also parse line-by-line for explicit lists, but filter out postal codes and common words
     const lines = userInput.split(/[,\n]/).filter(line => line.trim());
     for (const line of lines) {
       const trimmed = line.trim().replace(/^[-*•]\s*/, '').replace(/^\d+\.?\s*/, '');
@@ -182,8 +184,11 @@ Always respond in a friendly, helpful manner and ask clarifying questions when n
         item.name.toLowerCase() === trimmed.toLowerCase()
       )) {
         // Check if it looks like a food item (not a postal code or other text)
-        if (!/^[A-Z]\d[A-Z]\s?\d[A-Z]\d$/.test(trimmed) && 
-            !/^(i|me|my|the|and|or|but|in|on|at|to|for|of|with|by)$/i.test(trimmed)) {
+        const isPostalCode = /^[A-Z]\d[A-Z]\s?\d[A-Z]\d$/.test(trimmed.toUpperCase());
+        const isCommonWord = /^(i|me|my|the|and|or|but|in|on|at|to|for|of|with|by)$/i.test(trimmed);
+        const containsPostalCode = /[A-Z]\d[A-Z]\s?\d[A-Z]\d/.test(trimmed.toUpperCase());
+        
+        if (!isPostalCode && !isCommonWord && !containsPostalCode) {
           foundItems.push({ name: trimmed });
         }
       }

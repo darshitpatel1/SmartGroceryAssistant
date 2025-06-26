@@ -885,12 +885,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Helper function to perform Flipp search and analysis
     async function performFlippSearch(item: string, postalCode: string) {
-      if (!page || !browser || !aiAssistant) return;
+      if (!page || !browser || !aiAssistant) {
+        console.log("performFlippSearch: Missing dependencies", {
+          page: !!page,
+          browser: !!browser, 
+          aiAssistant: !!aiAssistant
+        });
+        return;
+      }
 
       try {
         // Build the Flipp URL
         const flippUrl = `https://flipp.com/search/${encodeURIComponent(item)}?postal_code=${postalCode}`;
-        console.log("Searching Flipp for:", item, "at", flippUrl);
+        console.log("performFlippSearch: Starting search for", item, "at", flippUrl);
         
         // Notify user that we're navigating to Flipp
         socket.emit("ai_response", { 
@@ -901,11 +908,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Navigate to Flipp URL (this will show in the browser viewport)
         socket.emit("loading", { status: "starting" });
         
+        console.log("performFlippSearch: About to navigate to", flippUrl);
+        
         // Navigate with proper event handling
         await page.goto(flippUrl, { 
           waitUntil: 'networkidle2',
           timeout: 30000 
         });
+        
+        console.log("performFlippSearch: Navigation completed to", page.url());
 
         // Get navigation state and emit proper events
         const canGoBack = await page.evaluate(() => window.history.length > 1);
@@ -990,6 +1001,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         if (!aiAssistant) {
           aiAssistant = new AIShoppingAssistant();
+        }
+
+        // Initialize browser if it doesn't exist
+        if (!browser || !page) {
+          console.log("AI Chat: Initializing browser for the first time");
+          
+          try {
+            // Launch browser with optimized settings
+            browser = await puppeteer.launch({ 
+              headless: true,
+              executablePath: '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium',
+              userDataDir: './browser-data',
+              args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--no-first-run',
+                '--no-zygote',
+                '--single-process',
+                '--disable-gpu',
+                '--disable-web-security',
+                '--disable-features=VizDisplayCompositor'
+              ]
+            });
+            
+            page = await browser.newPage();
+            await page.setViewport({ width: 1280, height: 720 });
+            
+            // Set up frame streaming for AI-initialized browser
+            const client = await page.target().createCDPSession();
+            await client.send('Page.enable');
+            await client.send('Page.startScreencast', {
+              format: 'jpeg',
+              quality: 80,
+              maxWidth: 1280,
+              maxHeight: 720,
+              everyNthFrame: 1
+            });
+
+            client.on('Page.screencastFrame', async ({ data, metadata }) => {
+              socket.emit('frame', data);
+              await client.send('Page.screencastFrameAck', { sessionId: metadata.sessionId });
+            });
+            
+            console.log("AI Chat: Browser initialized successfully with frame streaming");
+          } catch (error) {
+            console.error("AI Chat: Failed to initialize browser:", error);
+            socket.emit("ai_response", { 
+              message: "Browser initialization failed. Please try again.", 
+              type: 'error' 
+            });
+            return;
+          }
         }
 
         // Add user message to conversation history
