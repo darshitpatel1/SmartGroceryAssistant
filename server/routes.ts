@@ -174,47 +174,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Navigate to URL with faster loading
         await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15000 });
         
-        // Additional aggressive popup removal after page load
+        // Comprehensive popup removal and cookie acceptance for Flipp.com
         await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // First, try to click Accept All button before removing
+        const acceptClicked = await page.evaluate(() => {
+          // Look for "Accept All" button specifically
+          const buttons = Array.from(document.querySelectorAll('button, [role="button"]'));
+          for (const btn of buttons) {
+            const element = btn as HTMLElement;
+            const text = element.textContent?.trim().toLowerCase() || '';
+            const ariaLabel = element.getAttribute('aria-label')?.toLowerCase() || '';
+            
+            if ((text === 'accept all' || text === 'accept all cookies' || 
+                 ariaLabel.includes('accept all') || 
+                 element.innerText?.trim().toLowerCase() === 'accept all') &&
+                element.offsetParent !== null) {
+              console.log('Clicking Accept All button:', text || ariaLabel);
+              element.click();
+              element.dispatchEvent(new Event('click', { bubbles: true }));
+              
+              // Also dispatch mouse events for stubborn handlers
+              element.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+              element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+              return true;
+            }
+          }
+          return false;
+        });
+        
+        // Wait a moment for the click to process
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Then remove any remaining cookie banners/overlays
         await page.evaluate(() => {
-          // Specific Flipp.com cookie banner removal
-          const selectors = [
-            '[data-testid="cookie-banner"]',
+          // Specific selectors for cookie/privacy banners
+          const cookieSelectors = [
+            '[data-testid*="cookie"]',
+            '[data-testid*="consent"]',
+            '[data-testid*="privacy"]',
             '[class*="cookie"]',
             '[class*="consent"]',
+            '[class*="privacy"]',
             '[id*="cookie"]',
             '[id*="consent"]',
-            'div[style*="position: fixed"][style*="z-index"]'
+            '[id*="privacy"]',
+            'div[style*="position: fixed"][style*="z-index"]',
+            '[role="dialog"]',
+            '[role="banner"]'
           ];
           
-          selectors.forEach(selector => {
+          cookieSelectors.forEach(selector => {
             const elements = document.querySelectorAll(selector);
             elements.forEach(el => {
               const element = el as HTMLElement;
-              if (element.textContent?.toLowerCase().includes('accept') ||
-                  element.textContent?.toLowerCase().includes('cookie') ||
-                  element.textContent?.toLowerCase().includes('consent')) {
+              const text = element.textContent?.toLowerCase() || '';
+              if (text.includes('accept') || text.includes('cookie') || 
+                  text.includes('consent') || text.includes('privacy') ||
+                  text.includes('we value your privacy')) {
                 console.log('Removing cookie banner:', selector);
+                element.style.display = 'none';
                 element.remove();
               }
             });
           });
           
-          // Remove any fixed position overlays
+          // Remove any high z-index fixed position overlays
           const allElements = document.querySelectorAll('*');
           allElements.forEach(el => {
             const element = el as HTMLElement;
             const style = getComputedStyle(element);
             if (style.position === 'fixed' && 
-                parseInt(style.zIndex) > 1000 &&
-                element.offsetHeight > 100) {
+                parseInt(style.zIndex) > 100 &&
+                element.offsetHeight > 50) {
               const text = element.textContent?.toLowerCase() || '';
-              if (text.includes('cookie') || text.includes('accept') || text.includes('consent')) {
-                console.log('Removing fixed overlay');
+              if (text.includes('cookie') || text.includes('accept') || 
+                  text.includes('consent') || text.includes('privacy') ||
+                  text.includes('we value your privacy')) {
+                console.log('Removing blocking overlay');
+                element.style.display = 'none';
                 element.remove();
               }
             }
           });
+        });
+        
+        console.log('Cookie consent handling completed, accepted:', acceptClicked);
+        
+        // Set cookie consent directly to prevent future popups
+        await page.evaluate(() => {
+          // Set common cookie consent values that websites check for
+          const consentValues = [
+            'cookie_consent=accepted',
+            'cookies_accepted=true',
+            'gdpr_consent=true',
+            'privacy_consent=accepted',
+            'cookie_banner_dismissed=true',
+            'flipp_cookie_consent=accepted'
+          ];
+          
+          consentValues.forEach(cookieStr => {
+            const [name, value] = cookieStr.split('=');
+            document.cookie = `${name}=${value}; path=/; max-age=31536000; SameSite=Lax`;
+          });
+          
+          // Also set in localStorage for good measure
+          try {
+            localStorage.setItem('cookie_consent', 'accepted');
+            localStorage.setItem('privacy_consent', 'accepted');
+            localStorage.setItem('gdpr_consent', 'true');
+            localStorage.setItem('cookieConsent', 'accepted');
+          } catch (e) {
+            // Storage might not be available
+          }
+          
+          console.log('Set cookie consent flags to prevent future popups');
         });
         
         // Set up CDP for screen capture
