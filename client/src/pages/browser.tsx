@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSocket } from '@/hooks/use-socket';
+import { Chatbot } from '@/components/chatbot';
 
 export default function Browser() {
   const [url, setUrl] = useState('');
@@ -133,7 +134,7 @@ export default function Browser() {
   }, [connected, pressKey, type]);
 
   return (
-    <div className="h-screen flex flex-col bg-gray-900 text-white">
+    <div className="h-full flex flex-col bg-browser-bg text-browser-text">
       {/* Navigation Bar */}
       <div className="p-4 bg-gray-800 border-b border-gray-700">
         {/* Combined Navigation and URL Bar */}
@@ -266,70 +267,9 @@ export default function Browser() {
           </div>
         </div>
 
-        {/* Controls Panel */}
-        <div className="w-80 p-4 bg-gray-800 border-l border-gray-700 flex flex-col gap-4">
-
-          {/* Keyboard Shortcuts */}
-          <div>
-            <h3 className="text-lg font-semibold mb-3">Keyboard Shortcuts</h3>
-            <div className="space-y-2 text-sm text-gray-300">
-              <div className="flex justify-between">
-                <span>Refresh page:</span>
-                <span className="text-gray-400">Ctrl+R or F5</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Focus URL bar:</span>
-                <span className="text-gray-400">Ctrl+L</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Navigate:</span>
-                <span className="text-gray-400">Tab / Shift+Tab</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Submit:</span>
-                <span className="text-gray-400">Enter</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Escape:</span>
-                <span className="text-gray-400">Esc</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Browser Info */}
-          <div>
-            <h3 className="text-lg font-semibold mb-3">Browser Info</h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-400">Zoom:</span>
-                <span className="text-white">{Math.round(zoomLevel * 100)}%</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400">Viewport:</span>
-                <span className="text-white">1280x720</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400">Status:</span>
-                <span className={connected ? 'text-green-400' : 'text-red-400'}>
-                  {connected ? 'Connected' : 'Disconnected'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Instructions */}
-          <div>
-            <h3 className="text-lg font-semibold mb-3">How to Use</h3>
-            <div className="text-sm text-gray-400 space-y-2">
-              <p>• Enter URL and press Go</p>
-              <p>• Click to interact with elements</p>
-              <p>• Double-click to select text</p>
-              <p>• Use "Focus Input" for forms</p>
-              <p>• Scroll with mouse wheel</p>
-              <p>• Use keyboard shortcuts</p>
-              <p>• Adjust zoom with buttons</p>
-            </div>
-          </div>
+        {/* Chatbot Panel */}
+        <div className="w-80">
+          <Chatbot className="h-full" />
         </div>
       </div>
     </div>
