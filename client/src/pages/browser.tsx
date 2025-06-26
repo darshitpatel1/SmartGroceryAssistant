@@ -121,14 +121,14 @@ export default function Browser() {
         />
       </div>
 
-      {/* Main chatbot interface */}
-      <main className="flex-1 bg-black">
+      {/* Main chatbot interface - narrower */}
+      <main className="w-96 bg-black border-r border-gray-800">
         <Chatbot className="h-full" />
       </main>
       
-      {/* Right side wishlist canvas */}
-      <div className="w-80">
-        <WishlistCanvas />
+      {/* Right side grocery canvas - wider */}
+      <div className="flex-1">
+        <GroceryCanvas />
       </div>
     </div>
   );

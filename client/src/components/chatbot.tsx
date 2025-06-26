@@ -275,12 +275,9 @@ export function Chatbot({ className }: ChatbotProps) {
               <ShoppingCart className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="font-bold text-white">AI Shopping Assistant</h3>
+              <h3 className="font-bold text-white">Smart Shopping Assistant</h3>
               <div className="flex items-center gap-2 text-xs text-gray-400">
-                <MapPin className="w-3 h-3" />
-                <span>Area: M5V</span>
-                <Zap className="w-3 h-3 ml-2 text-yellow-400" />
-                <span>Smart Analysis</span>
+                <span>Hey! I'm here to help you find the best deals</span>
               </div>
             </div>
           </div>
@@ -333,7 +330,7 @@ export function Chatbot({ className }: ChatbotProps) {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Enter postal code + items (e.g., M5V 3A1 milk bread)"
+              placeholder="Type your postal code + grocery items..."
               className="flex-1 bg-gray-900 border-gray-700 focus:ring-blue-500 text-white placeholder-gray-400 text-sm pr-10"
             />
             <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -357,14 +354,19 @@ export function Chatbot({ className }: ChatbotProps) {
             className="text-xs bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
           >
             <MapPin className="w-3 h-3 mr-1" />
-            M5V 3A1
+            Postal Code
           </Button>
           <Button
-            onClick={() => setInputValue(inputValue + " milk bread eggs")}
+            onClick={() => {
+              // This will be connected to grocery canvas selected items
+              const quickList = "M5V 3A1 milk bread eggs"; // Placeholder for now
+              setInputValue(quickList);
+            }}
             variant="outline"
             size="sm"
             className="text-xs bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
           >
+            <ShoppingCart className="w-3 h-3 mr-1" />
             Quick List
           </Button>
         </div>
