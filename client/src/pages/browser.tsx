@@ -125,8 +125,37 @@ export default function Browser() {
 
   return (
     <div className="h-screen flex flex-col bg-gray-900 text-white">
-      {/* URL Bar */}
+      {/* Navigation Bar */}
       <div className="p-4 bg-gray-800 border-b border-gray-700">
+        <div className="flex items-center gap-3 mb-3">
+          {/* Navigation Buttons */}
+          <button
+            onClick={handleBack}
+            disabled={!canGoBack || !connected}
+            className="p-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-500 rounded transition-colors"
+            title="Go Back"
+          >
+            ←
+          </button>
+          <button
+            onClick={handleForward}
+            disabled={!canGoForward || !connected}
+            className="p-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-500 rounded transition-colors"
+            title="Go Forward"
+          >
+            →
+          </button>
+          <button
+            onClick={handleRefresh}
+            disabled={!connected}
+            className="p-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-500 rounded transition-colors"
+            title="Refresh Page"
+          >
+            ↻
+          </button>
+        </div>
+        
+        {/* URL Bar */}
         <form onSubmit={handleBrowse} className="flex gap-2">
           <input
             type="url"
@@ -137,15 +166,25 @@ export default function Browser() {
           />
           <button
             type="submit"
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white font-medium"
+            disabled={!connected}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white font-medium transition-colors"
           >
             Go
           </button>
         </form>
-        <div className="mt-2 text-sm">
-          Status: <span className={connected ? 'text-green-400' : 'text-red-400'}>
-            {connected ? 'Connected' : 'Disconnected'}
+        
+        {/* Status */}
+        <div className="mt-2 flex items-center justify-between text-sm">
+          <span>
+            Status: <span className={connected ? 'text-green-400' : 'text-red-400'}>
+              {connected ? 'Connected' : 'Disconnected'}
+            </span>
           </span>
+          {currentUrl && (
+            <span className="text-gray-400 truncate max-w-md">
+              Current: {currentUrl}
+            </span>
+          )}
         </div>
       </div>
 
