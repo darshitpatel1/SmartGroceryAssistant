@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import logo from "@/imgs/logo_white.png";
 import { 
   Users, 
   Trophy, 
@@ -188,6 +189,11 @@ export function GroupInfoSidebar({ groupId }: GroupInfoSidebarProps) {
 
   return (
     <div className="w-80 bg-gray-900 text-white border-r border-gray-700 h-full flex flex-col">
+      {/* Logo Header */}
+      <div className="flex-shrink-0 flex items-center justify-center p-4 border-b border-gray-700">
+        <img src={logo} alt="SmartGrocery Logo" className="h-16" />
+      </div>
+      
       {/* Scrollable content area */}
       <div className="p-4 flex-1 flex flex-col min-h-0 overflow-auto space-y-4">
         {/* Group Header */}

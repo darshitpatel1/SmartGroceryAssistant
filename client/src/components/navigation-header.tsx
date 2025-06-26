@@ -11,7 +11,6 @@ export function NavigationHeader() {
   return (
     <header className="bg-gray-900 border-b border-gray-700 px-6 py-3 flex justify-between items-center">
       <div className="flex items-center gap-4">
-        <h1 className="text-xl font-bold text-white">Smart Grocery Assistant</h1>
         <div className="flex gap-2">
           <Button
             variant={location === "/" ? "default" : "ghost"}
