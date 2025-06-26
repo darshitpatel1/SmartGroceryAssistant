@@ -42,6 +42,125 @@
       "logo": "🛍️",
       "savings": 78.34,
       "deals": 20
+    },
+    {
+      "id": "sobeys",
+      "name": "Sobeys",
+      "logo": "🍎",
+      "savings": 0,
+      "deals": 0
+    },
+    {
+      "id": "iga",
+      "name": "IGA",
+      "logo": "🥕",
+      "savings": 0,
+      "deals": 0
+    },
+    {
+      "id": "freshco",
+      "name": "FreshCo",
+      "logo": "🥬",
+      "savings": 0,
+      "deals": 0
+    },
+    {
+      "id": "farm-boy",
+      "name": "Farm Boy",
+      "logo": "🚜",
+      "savings": 0,
+      "deals": 0
+    },
+    {
+      "id": "valu-mart",
+      "name": "Valu-mart",
+      "logo": "💰",
+      "savings": 0,
+      "deals": 0
+    },
+    {
+      "id": "independent",
+      "name": "Independent",
+      "logo": "🏢",
+      "savings": 0,
+      "deals": 0
+    },
+    {
+      "id": "zehrs",
+      "name": "Zehrs",
+      "logo": "🛒",
+      "savings": 0,
+      "deals": 0
+    },
+    {
+      "id": "fortinos",
+      "name": "Fortinos",
+      "logo": "🍇",
+      "savings": 0,
+      "deals": 0
+    },
+    {
+      "id": "superstore",
+      "name": "Real Canadian Superstore",
+      "logo": "🇨🇦",
+      "savings": 0,
+      "deals": 0
+    },
+    {
+      "id": "walmart",
+      "name": "Walmart",
+      "logo": "🏪",
+      "savings": 0,
+      "deals": 0
+    },
+    {
+      "id": "costco",
+      "name": "Costco",
+      "logo": "📦",
+      "savings": 0,
+      "deals": 0
+    },
+    {
+      "id": "canadian-tire",
+      "name": "Canadian Tire",
+      "logo": "🔧",
+      "savings": 0,
+      "deals": 0
+    },
+    {
+      "id": "dollarama",
+      "name": "Dollarama",
+      "logo": "💵",
+      "savings": 0,
+      "deals": 0
+    },
+    {
+      "id": "bulk-barn",
+      "name": "Bulk Barn",
+      "logo": "🥜",
+      "savings": 0,
+      "deals": 0
+    },
+    {
+      "id": "presidents-choice",
+      "name": "President's Choice",
+      "logo": "🏷️",
+      "savings": 0,
+      "deals": 0
+    },
+    {
+      "id": "t-t-supermarket",
+      "name": "T&T Supermarket",
+      "logo": "🍜",
+      "savings": 0,
+      "deals": 0
+    },
+    {
+      "id": "unknown",
+      "name": "Unknown Store",
+      "logo": "❓",
+      "savings": 0,
+      "deals": 0
     }
   ],
   "groups": [

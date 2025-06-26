@@ -270,24 +270,33 @@ export function GroupInfoSidebar({ groupId }: GroupInfoSidebarProps) {
         {isLeaderboardExpanded && (
           <CardContent className="px-4 pb-3 flex-1 min-h-0 overflow-hidden">
             <div className="h-full overflow-y-auto scrollbar-hide space-y-2">
-              {selectedGroup.members.map((member) => (
-                <div key={member.id} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-gray-700/50 transition-colors">
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1">
-                      {getRankIcon(member.rank)}
+              {(() => {
+                // Sort members by savings in descending order and assign ranks
+                const sortedMembers = [...selectedGroup.members].sort((a, b) => b.savings - a.savings);
+                const rankedMembers = sortedMembers.map((member, index) => ({
+                  ...member,
+                  dynamicRank: index + 1
+                }));
+                
+                return rankedMembers.map((member) => (
+                  <div key={member.id} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-gray-700/50 transition-colors">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        {getRankIcon(member.dynamicRank)}
+                      </div>
+                      <Avatar className="w-6 h-6">
+                        <AvatarFallback className="bg-gray-600 text-white text-xs">
+                          {member.avatar}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className={`text-xs font-medium ${member.name === 'You' ? 'text-blue-300' : 'text-gray-200'}`}>
+                        {member.name}
+                      </span>
                     </div>
-                    <Avatar className="w-6 h-6">
-                      <AvatarFallback className="bg-gray-600 text-white text-xs">
-                        {member.avatar}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className={`text-xs font-medium ${member.name === 'You' ? 'text-blue-300' : 'text-gray-200'}`}>
-                      {member.name}
-                    </span>
+                    <span className="text-xs text-green-400">${member.savings.toFixed(2)}</span>
                   </div>
-                  <span className="text-xs text-green-400">${member.savings.toFixed(2)}</span>
-                </div>
-              ))}
+                ));
+              })()}
             </div>
           </CardContent>
         )}

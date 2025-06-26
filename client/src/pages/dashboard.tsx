@@ -51,9 +51,30 @@ export default function Dashboard() {
   const totalPersonalSavingsFromDeals = personalDeals.reduce((sum, deal) => sum + deal.savingsAmount, 0);
   
   // Calculate savings by store from actual saved deals (including both personal and group deals)
-  const storeStatsFromDeals = stores.map(store => {
-    const storeDeals = savedDeals?.filter(deal => {
-      const dealStore = deal.store.toLowerCase().trim();
+  const allStoresFromDeals = new Map<string, { name: string; savings: number; deals: number; logo: string; }>();
+  
+  // First, collect all unique stores from saved deals
+  savedDeals?.forEach(deal => {
+    const dealStore = deal.store;
+    if (allStoresFromDeals.has(dealStore)) {
+      const existing = allStoresFromDeals.get(dealStore)!;
+      existing.savings += deal.savingsAmount;
+      existing.deals += 1;
+    } else {
+      allStoresFromDeals.set(dealStore, {
+        name: dealStore,
+        savings: deal.savingsAmount,
+        deals: 1,
+        logo: "🏪" // Default logo
+      });
+    }
+  });
+  
+  // Now match with predefined stores to get proper logos and names
+  const storeStatsFromDeals = Array.from(allStoresFromDeals.entries()).map(([dealStoreName, dealStoreData]) => {
+    // Try to find matching predefined store
+    const matchingStore = stores.find(store => {
+      const dealStore = dealStoreName.toLowerCase().trim();
       const storeName = store.name.toLowerCase().trim();
       
       // Try exact match first
@@ -62,31 +83,53 @@ export default function Dashboard() {
       // Try partial matching (store name contains deal store or vice versa)
       if (dealStore.includes(storeName) || storeName.includes(dealStore)) return true;
       
-      // Handle special cases like "Shoppers Drug Mart" vs "Shoppers"
+      // Handle special cases and common variations
       if (storeName.includes('shoppers') && dealStore.includes('shoppers')) return true;
       if (storeName.includes('metro') && dealStore.includes('metro')) return true;
       if (storeName.includes('loblaws') && dealStore.includes('loblaws')) return true;
       if (storeName.includes('no frills') && dealStore.includes('no frills')) return true;
       if (storeName.includes('food basics') && dealStore.includes('food basics')) return true;
+      if (storeName.includes('sobeys') && dealStore.includes('sobeys')) return true;
+      if (storeName.includes('freshco') && dealStore.includes('freshco')) return true;
+      if (storeName.includes('farm boy') && dealStore.includes('farm boy')) return true;
+      if (storeName.includes('valu-mart') && dealStore.includes('valu')) return true;
+      if (storeName.includes('independent') && dealStore.includes('independent')) return true;
+      if (storeName.includes('zehrs') && dealStore.includes('zehrs')) return true;
+      if (storeName.includes('fortinos') && dealStore.includes('fortinos')) return true;
+      if (storeName.includes('superstore') && (dealStore.includes('superstore') || dealStore.includes('rcss'))) return true;
+      if (storeName.includes('walmart') && dealStore.includes('walmart')) return true;
+      if (storeName.includes('costco') && dealStore.includes('costco')) return true;
+      if (storeName.includes('canadian tire') && (dealStore.includes('canadian tire') || dealStore.includes('ct'))) return true;
+      if (storeName.includes('dollarama') && dealStore.includes('dollarama')) return true;
+      if (storeName.includes('bulk barn') && dealStore.includes('bulk')) return true;
+      if (storeName.includes('t&t') && (dealStore.includes('t&t') || dealStore.includes('t and t'))) return true;
       
       return false;
-    }) || [];
+    });
     
-    const storeSavings = storeDeals.reduce((sum, deal) => sum + deal.savingsAmount, 0);
-    const storeDealsCount = storeDeals.length;
-    
+    // Use predefined store info if found, otherwise use the deal store data
     return {
-      ...store,
-      savings: storeSavings,
-      deals: storeDealsCount,
-      // Add debug info
-      matchedDeals: storeDeals.map(d => ({ item: d.item, store: d.store, amount: d.savingsAmount }))
+      id: matchingStore?.id || dealStoreName.toLowerCase().replace(/\s+/g, '-'),
+      name: matchingStore?.name || dealStoreData.name,
+      logo: matchingStore?.logo || dealStoreData.logo,
+      savings: dealStoreData.savings,
+      deals: dealStoreData.deals
     };
   }).filter(store => store.deals > 0); // Only show stores where you've saved deals
 
   // Get user's rank in each group from actual group data
   const getMyRankInGroup = (group: any) => {
-    const myMember = group.members.find((member: any) => member.name === 'You');
+    // Sort members by savings in descending order and calculate ranks
+    const sortedMembers = [...group.members].sort((a, b) => b.savings - a.savings);
+    
+    // Assign ranks based on sorted order
+    const rankedMembers = sortedMembers.map((member, index) => ({
+      ...member,
+      rank: index + 1
+    }));
+    
+    // Find the current user's rank
+    const myMember = rankedMembers.find((member: any) => member.name === 'You');
     return myMember ? myMember.rank : group.memberCount;
   };
 
@@ -145,12 +188,6 @@ export default function Dashboard() {
                       <div className="flex justify-between">
                         <span className="text-sm text-gray-300">Total Saved</span>
                         <span className="font-semibold text-green-400">${store.savings.toFixed(2)}</span>
-                      </div>
-                      <div className="w-full bg-gray-600 rounded-full h-2">
-                        <div 
-                          className="bg-green-500 h-2 rounded-full transition-all"
-                          style={{ width: `${storeStatsFromDeals.length > 0 ? (store.savings / Math.max(...storeStatsFromDeals.map(s => s.savings), 1)) * 100 : 0}%` }}
-                        />
                       </div>
                     </div>
                   </div>
@@ -256,12 +293,6 @@ export default function Dashboard() {
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-300">My Contribution</span>
                       <span className="font-semibold text-green-400">${group.myContribution.toFixed(2)}</span>
-                    </div>
-                    <div className="w-full bg-gray-600 rounded-full h-2 mt-2">
-                      <div 
-                        className="bg-purple-500 h-2 rounded-full transition-all"
-                        style={{ width: `${group.totalSavings > 0 ? (group.myContribution / group.totalSavings) * 100 : 0}%` }}
-                      />
                     </div>
                     <div className="flex justify-between items-center mt-3">
                       <span className="text-xs text-gray-400">

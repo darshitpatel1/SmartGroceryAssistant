@@ -118,7 +118,7 @@ export function UserProfileSidebar() {
               </div>
             </div>
           ) : (
-            <>
+            <div className="flex items-center justify-center gap-2">
               <h2 className="text-lg font-semibold text-white">{user.name}</h2>
               <Button 
                 variant="ghost" 
@@ -127,12 +127,12 @@ export function UserProfileSidebar() {
                   setTempName(user.name);
                   setIsEditingName(true);
                 }}
-                className="text-gray-400 hover:text-white text-xs"
+                className="text-gray-400 hover:text-white p-1"
+                title="Edit name"
               >
-                <Edit3 className="w-3 h-3 mr-1" />
-                Edit
+                <Edit3 className="w-3 h-3" />
               </Button>
-            </>
+            </div>
           )}
         </CardHeader>
         {isProfileExpanded && (
