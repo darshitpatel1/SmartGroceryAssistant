@@ -195,24 +195,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Wait a bit for any navigation to settle
           await new Promise(resolve => setTimeout(resolve, 100));
           
-          // Enhanced focus detection for search inputs
+          // Enhanced element interaction handling
           try {
-            const focusResult = await page.evaluate((clickX, clickY) => {
+            const clickResult = await page.evaluate((clickX, clickY) => {
               try {
                 let element = document.elementFromPoint(clickX, clickY) as HTMLElement;
-                if (!element) return { focused: false, reason: 'no element found' };
+                if (!element) return { success: false, reason: 'no element found' };
                 
-                // If clicking on a div/wrapper, look for input inside or nearby
-                if (element.tagName.toLowerCase() !== 'input') {
-                  // Check if clicked element contains an input
-                  const inputInside = element.querySelector('input');
-                  if (inputInside) {
-                    element = inputInside as HTMLElement;
+                // Store original element for reference
+                const originalElement = element;
+                
+                // If clicking on a div/wrapper, look for interactive elements inside
+                if (!['input', 'textarea', 'button', 'a', 'select'].includes(element.tagName.toLowerCase())) {
+                  // Check if clicked element contains an input or interactive element
+                  const interactiveInside = element.querySelector('input, textarea, button, a, select, [contenteditable="true"]');
+                  if (interactiveInside) {
+                    element = interactiveInside as HTMLElement;
                   } else {
-                    // Look for nearby search inputs
-                    const searchInputs = document.querySelectorAll('input[placeholder*="search" i], input[placeholder*="Search" i], input[placeholder*="flyers" i]');
-                    if (searchInputs.length > 0) {
-                      element = searchInputs[0] as HTMLElement;
+                    // Look for parent with interactive elements
+                    let parent = element.parentElement;
+                    while (parent && parent !== document.body) {
+                      const interactiveInParent = parent.querySelector('input, textarea, button, a, select');
+                      if (interactiveInParent) {
+                        element = interactiveInParent as HTMLElement;
+                        break;
+                      }
+                      parent = parent.parentElement;
                     }
                   }
                 }
@@ -221,35 +229,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const isInput = tagName === 'input' || tagName === 'textarea' || element.contentEditable === 'true';
                 
                 if (isInput) {
-                  // Multiple focus methods
-                  element.focus();
-                  element.click();
-                  (element as HTMLInputElement).select();
+                  // Enhanced input handling
+                  const inputElement = element as HTMLInputElement;
                   
-                  // Clear any existing value for search
-                  if ('value' in element && element.getAttribute('placeholder')?.toLowerCase().includes('search')) {
-                    (element as HTMLInputElement).value = '';
+                  // Ensure element is visible
+                  element.scrollIntoView({ block: 'center', inline: 'center' });
+                  
+                  // Clear any text selections
+                  if (document.getSelection) {
+                    document.getSelection()?.removeAllRanges();
                   }
                   
-                  // Verify focus worked
+                  // Focus sequence
+                  element.focus();
+                  element.click();
+                  
+                  // Position cursor at end for existing text
+                  if (inputElement.setSelectionRange && inputElement.value) {
+                    const length = inputElement.value.length;
+                    inputElement.setSelectionRange(length, length);
+                  }
+                  
+                  // Dispatch events
+                  element.dispatchEvent(new Event('focus', { bubbles: true }));
+                  element.dispatchEvent(new Event('click', { bubbles: true }));
+                  
                   const isFocused = document.activeElement === element;
                   return { 
+                    success: true,
+                    type: 'input',
                     focused: isFocused, 
                     tagName, 
                     placeholder: element.getAttribute('placeholder') || '',
-                    value: 'value' in element ? (element as HTMLInputElement).value : ''
+                    value: inputElement.value || '',
+                    inputType: inputElement.type || 'text'
+                  };
+                } else {
+                  // Handle other clickable elements
+                  element.scrollIntoView({ block: 'center', inline: 'center' });
+                  element.click();
+                  element.dispatchEvent(new Event('click', { bubbles: true }));
+                  
+                  return { 
+                    success: true,
+                    type: 'element',
+                    tagName: originalElement.tagName.toLowerCase(),
+                    className: originalElement.className,
+                    textContent: originalElement.textContent?.substring(0, 100) || ''
                   };
                 }
-                
-                return { focused: false, reason: 'not an input element', tagName, className: element.className };
               } catch (e: any) {
-                return { focused: false, reason: 'evaluation error', error: String(e) };
+                return { success: false, reason: 'evaluation error', error: String(e) };
               }
             }, x, y);
             
-            console.log(`Click at: ${x}, ${y} - Focus result:`, focusResult);
+            console.log(`Click at: ${x}, ${y} - Result:`, clickResult);
+            socket.emit("click_result", clickResult);
           } catch (evalError) {
-            console.log(`Click at: ${x}, ${y} - Focus evaluation failed:`, String(evalError));
+            console.log(`Click at: ${x}, ${y} - Evaluation failed:`, String(evalError));
+            socket.emit("click_error", { error: String(evalError) });
           }
         }
       } catch (error) {
@@ -261,11 +299,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!page) return;
       
       try {
-        // Simple reliable typing
-        await page.keyboard.type(text, { delay: 100 });
-        console.log("Typed:", text);
+        // Enhanced typing with proper focus handling
+        const typeResult = await page.evaluate((textToType) => {
+          const activeElement = document.activeElement as HTMLInputElement | HTMLTextAreaElement;
+          
+          if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+            // Get current cursor position
+            const start = activeElement.selectionStart || 0;
+            const end = activeElement.selectionEnd || 0;
+            const currentValue = activeElement.value || '';
+            
+            // Insert text at cursor position
+            const newValue = currentValue.substring(0, start) + textToType + currentValue.substring(end);
+            activeElement.value = newValue;
+            
+            // Set cursor to end of inserted text
+            const newCursorPos = start + textToType.length;
+            activeElement.setSelectionRange(newCursorPos, newCursorPos);
+            
+            // Trigger input events to ensure the website detects the change
+            activeElement.dispatchEvent(new Event('input', { bubbles: true }));
+            activeElement.dispatchEvent(new Event('change', { bubbles: true }));
+            
+            return { 
+              success: true, 
+              newValue, 
+              cursorPos: newCursorPos,
+              tagName: activeElement.tagName,
+              type: activeElement.type || 'text'
+            };
+          }
+          
+          return { success: false, reason: 'No active input element' };
+        }, text);
+        
+        console.log("Type result:", typeResult, "Text:", text);
+        socket.emit("type_result", typeResult);
       } catch (error) {
         console.error("Type error:", error);
+        socket.emit("type_error", { error: String(error) });
       }
     });
 
