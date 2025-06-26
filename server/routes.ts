@@ -122,29 +122,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const x = xNorm * viewport.width;
           const y = yNorm * viewport.height;
           
-          // Enhanced click with proper timing for dropdowns and stable focus
-          const elementInfo = await page.evaluate((clickX, clickY) => {
+          // Click and auto-focus inputs
+          await page.mouse.click(x, y);
+          
+          // After click, check if we clicked on an input and focus it
+          await page.evaluate((clickX, clickY) => {
             const element = document.elementFromPoint(clickX, clickY) as HTMLElement;
-            if (!element) return { type: 'none' };
-            
-            const tagName = element.tagName.toLowerCase();
-            const hasDropdown = element.querySelector('select, option') || 
-                               element.closest('select, .dropdown, [role="listbox"], [role="menu"]') ||
-                               element.getAttribute('role') === 'button' ||
-                               element.classList.contains('dropdown') ||
-                               element.classList.contains('select');
-            
-            const isInput = tagName === 'input' || tagName === 'textarea' || element.contentEditable === 'true';
-            
-            return {
-              type: hasDropdown ? 'dropdown' : (isInput ? 'input' : 'normal'),
-              tagName,
-              rect: element.getBoundingClientRect()
-            };
+            if (element) {
+              const tagName = element.tagName.toLowerCase();
+              // Auto-focus input elements
+              if (tagName === 'input' || tagName === 'textarea' || element.contentEditable === 'true') {
+                element.focus();
+                // Position cursor at end of existing text for better typing experience
+                if ('selectionStart' in element && 'value' in element) {
+                  const inputElement = element as HTMLInputElement;
+                  const length = inputElement.value.length;
+                  inputElement.setSelectionRange(length, length);
+                }
+              }
+            }
           }, x, y);
           
-          // Simplified click handling - no complex element detection
-          await page.mouse.click(x, y);
           console.log(`Click at: ${x}, ${y}`);
         }
       } catch (error) {
