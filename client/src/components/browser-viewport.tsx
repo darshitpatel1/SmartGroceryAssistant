@@ -4,9 +4,17 @@ interface BrowserViewportProps {
   frame: string | null;
   connected: boolean;
   onViewportClick: (xNorm: number, yNorm: number) => void;
+  onViewportDoubleClick?: (xNorm: number, yNorm: number) => void;
+  onViewportScroll?: (deltaY: number) => void;
 }
 
-export function BrowserViewport({ frame, connected, onViewportClick }: BrowserViewportProps) {
+export function BrowserViewport({ 
+  frame, 
+  connected, 
+  onViewportClick, 
+  onViewportDoubleClick,
+  onViewportScroll 
+}: BrowserViewportProps) {
   const [scale] = useState('100%');
 
   const handleImageClick = (e: React.MouseEvent<HTMLImageElement>) => {
@@ -14,6 +22,22 @@ export function BrowserViewport({ frame, connected, onViewportClick }: BrowserVi
     const xNorm = (e.clientX - rect.left) / rect.width;
     const yNorm = (e.clientY - rect.top) / rect.height;
     onViewportClick(xNorm, yNorm);
+  };
+
+  const handleImageDoubleClick = (e: React.MouseEvent<HTMLImageElement>) => {
+    if (onViewportDoubleClick) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const xNorm = (e.clientX - rect.left) / rect.width;
+      const yNorm = (e.clientY - rect.top) / rect.height;
+      onViewportDoubleClick(xNorm, yNorm);
+    }
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    if (onViewportScroll) {
+      onViewportScroll(e.deltaY);
+    }
   };
 
   return (
