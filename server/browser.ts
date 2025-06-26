@@ -131,7 +131,7 @@ export class BrowserManager {
     if (!this.page) return;
     
     try {
-      await this.page.mouse.wheel({ deltaX: 0, deltaY });
+      await this.page.mouse.wheel(0, deltaY);
       console.log("Scrolled:", deltaY);
     } catch (error) {
       console.error("Scroll error:", error);

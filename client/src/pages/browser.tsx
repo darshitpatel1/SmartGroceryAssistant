@@ -4,7 +4,7 @@ import { useSocket } from '@/hooks/use-socket';
 export default function Browser() {
   const [url, setUrl] = useState('');
   const [zoomLevel, setZoomLevel] = useState(1);
-  const { connected, frame, currentUrl, canGoBack, canGoForward, browse, click, doubleClick, focusInput, type, scroll, pressKey, zoom, navigate } = useSocket();
+  const { connected, frame, currentUrl, canGoBack, canGoForward, isLoading, browse, click, doubleClick, focusInput, type, scroll, pressKey, zoom, navigate } = useSocket();
   const viewportRef = useRef<HTMLDivElement>(null);
 
   const handleBrowse = (e: React.FormEvent) => {
@@ -184,10 +184,19 @@ export default function Browser() {
           </button>
         </form>
         
+        {/* Loading Progress Bar */}
+        {isLoading && (
+          <div className="mt-2">
+            <div className="w-full bg-gray-700 rounded-full h-1">
+              <div className="bg-blue-500 h-1 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+            </div>
+          </div>
+        )}
+        
         {/* Status */}
         <div className="mt-2 text-sm">
           Status: <span className={connected ? 'text-green-400' : 'text-red-400'}>
-            {connected ? 'Connected' : 'Disconnected'}
+            {connected ? (isLoading ? 'Loading...' : 'Connected') : 'Disconnected'}
           </span>
         </div>
       </div>
@@ -259,46 +268,6 @@ export default function Browser() {
 
         {/* Controls Panel */}
         <div className="w-80 p-4 bg-gray-800 border-l border-gray-700 flex flex-col gap-4">
-          {/* Text Input */}
-          <div>
-            <h3 className="text-lg font-semibold mb-3">Type Text</h3>
-            <textarea
-              rows={4}
-              placeholder="Type here and press Enter to send to browser"
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-              onKeyDown={handleKeyDown}
-              disabled={!connected}
-            />
-            <div className="mt-2 space-y-2">
-              <div className="flex gap-2">
-                <button
-                  onClick={focusInput}
-                  disabled={!connected}
-                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white text-sm font-medium transition-colors"
-                  title="Find and focus the best input field on page"
-                >
-                  Auto Focus
-                </button>
-                <button
-                  onClick={() => {
-                    const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
-                    if (textarea && textarea.value.trim()) {
-                      type(textarea.value.trim());
-                      textarea.value = '';
-                    }
-                  }}
-                  disabled={!connected}
-                  className="px-3 py-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white text-sm font-medium transition-colors"
-                  title="Send text to browser"
-                >
-                  Send Text
-                </button>
-              </div>
-              <p className="text-sm text-gray-400">
-                Type in box above, then click "Send Text" or press Enter
-              </p>
-            </div>
-          </div>
 
           {/* Keyboard Shortcuts */}
           <div>
