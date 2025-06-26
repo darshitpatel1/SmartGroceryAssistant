@@ -64,7 +64,17 @@ export function useSocket(): UseSocketReturn {
       setCanGoForward(forward);
     });
 
+    socket.on('element_clicked', (elementInfo: any) => {
+      console.log('Element clicked:', elementInfo);
+    });
 
+    socket.on('input_focused', (result: any) => {
+      console.log('Input focus result:', result);
+    });
+
+    socket.on('double_click_result', (result: any) => {
+      console.log('Double click result:', result);
+    });
 
     socket.on('error', ({ message }: { message: string }) => {
       console.error('Socket error:', message);
@@ -117,6 +127,18 @@ export function useSocket(): UseSocketReturn {
     }
   };
 
+  const doubleClick = (xNorm: number, yNorm: number) => {
+    if (socketRef.current) {
+      socketRef.current.emit('double_click', { xNorm, yNorm });
+    }
+  };
+
+  const focusInput = () => {
+    if (socketRef.current) {
+      socketRef.current.emit('focus_input');
+    }
+  };
+
   return {
     socket: socketRef.current,
     connected,
@@ -126,6 +148,8 @@ export function useSocket(): UseSocketReturn {
     canGoForward,
     browse,
     click,
+    doubleClick,
+    focusInput,
     type,
     scroll,
     pressKey,

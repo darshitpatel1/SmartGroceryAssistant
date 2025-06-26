@@ -4,7 +4,7 @@ import { useSocket } from '@/hooks/use-socket';
 export default function Browser() {
   const [url, setUrl] = useState('');
   const [zoomLevel, setZoomLevel] = useState(1);
-  const { connected, frame, currentUrl, canGoBack, canGoForward, browse, click, type, scroll, pressKey, zoom, navigate } = useSocket();
+  const { connected, frame, currentUrl, canGoBack, canGoForward, browse, click, doubleClick, focusInput, type, scroll, pressKey, zoom, navigate } = useSocket();
   const viewportRef = useRef<HTMLDivElement>(null);
 
   const handleBrowse = (e: React.FormEvent) => {
@@ -42,6 +42,13 @@ export default function Browser() {
     const xNorm = (e.clientX - rect.left) / rect.width;
     const yNorm = (e.clientY - rect.top) / rect.height;
     click(xNorm, yNorm);
+  };
+
+  const handleViewportDoubleClick = (e: React.MouseEvent<HTMLImageElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const xNorm = (e.clientX - rect.left) / rect.width;
+    const yNorm = (e.clientY - rect.top) / rect.height;
+    doubleClick(xNorm, yNorm);
   };
 
 
@@ -202,6 +209,7 @@ export default function Browser() {
                   alt="Browser"
                   className="w-full h-full object-contain cursor-pointer"
                   onClick={handleViewportClick}
+                  onDoubleClick={handleViewportDoubleClick}
                   draggable={false}
                 />
               </div>
@@ -261,9 +269,19 @@ export default function Browser() {
               onKeyDown={handleKeyDown}
               disabled={!connected}
             />
-            <p className="mt-2 text-sm text-gray-400">
-              Press Enter to send text to the browser
-            </p>
+            <div className="mt-2 flex justify-between items-center">
+              <p className="text-sm text-gray-400">
+                Press Enter to send text to the browser
+              </p>
+              <button
+                onClick={focusInput}
+                disabled={!connected}
+                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white text-sm font-medium transition-colors"
+                title="Focus first input field on page"
+              >
+                Focus Input
+              </button>
+            </div>
           </div>
 
           {/* Keyboard Shortcuts */}
@@ -319,7 +337,9 @@ export default function Browser() {
             <h3 className="text-lg font-semibold mb-3">How to Use</h3>
             <div className="text-sm text-gray-400 space-y-2">
               <p>• Enter URL and press Go</p>
-              <p>• Click anywhere to interact</p>
+              <p>• Click to interact with elements</p>
+              <p>• Double-click to select text</p>
+              <p>• Use "Focus Input" for forms</p>
               <p>• Scroll with mouse wheel</p>
               <p>• Use keyboard shortcuts</p>
               <p>• Adjust zoom with buttons</p>
