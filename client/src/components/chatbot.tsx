@@ -17,7 +17,7 @@ interface ChatbotProps {
 }
 
 export function Chatbot({ className }: ChatbotProps) {
-  const { type } = useSocket();
+  const { type, focusInput, connected } = useSocket();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -210,13 +210,13 @@ export function Chatbot({ className }: ChatbotProps) {
         {/* Browser Interaction Buttons */}
         <div className="flex gap-2">
           <Button
-            onClick={focusInput}
+            onClick={() => focusInput()}
             disabled={!connected}
             size="sm"
             variant="outline"
             className="flex-1 text-xs"
           >
-            <MousePointer className="w-3 h-3 mr-1" />
+            <Focus className="w-3 h-3 mr-1" />
             Focus Input
           </Button>
           <Button
@@ -225,7 +225,7 @@ export function Chatbot({ className }: ChatbotProps) {
             variant={typeMode ? "default" : "outline"}
             className="flex-1 text-xs"
           >
-            <Keyboard className="w-3 h-3 mr-1" />
+            <Type className="w-3 h-3 mr-1" />
             Type Mode
           </Button>
         </div>
