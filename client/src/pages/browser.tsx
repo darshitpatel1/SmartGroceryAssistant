@@ -269,18 +269,34 @@ export default function Browser() {
               onKeyDown={handleKeyDown}
               disabled={!connected}
             />
-            <div className="mt-2 flex justify-between items-center">
+            <div className="mt-2 space-y-2">
+              <div className="flex gap-2">
+                <button
+                  onClick={focusInput}
+                  disabled={!connected}
+                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white text-sm font-medium transition-colors"
+                  title="Find and focus the best input field on page"
+                >
+                  Auto Focus
+                </button>
+                <button
+                  onClick={() => {
+                    const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
+                    if (textarea && textarea.value.trim()) {
+                      type(textarea.value.trim());
+                      textarea.value = '';
+                    }
+                  }}
+                  disabled={!connected}
+                  className="px-3 py-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white text-sm font-medium transition-colors"
+                  title="Send text to browser"
+                >
+                  Send Text
+                </button>
+              </div>
               <p className="text-sm text-gray-400">
-                Press Enter to send text to the browser
+                Type in box above, then click "Send Text" or press Enter
               </p>
-              <button
-                onClick={focusInput}
-                disabled={!connected}
-                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white text-sm font-medium transition-colors"
-                title="Focus first input field on page"
-              >
-                Focus Input
-              </button>
             </div>
           </div>
 

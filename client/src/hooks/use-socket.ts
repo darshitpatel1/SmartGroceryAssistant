@@ -76,6 +76,18 @@ export function useSocket(): UseSocketReturn {
       console.log('Double click result:', result);
     });
 
+    socket.on('type_result', (result: any) => {
+      console.log('Type result:', result);
+    });
+
+    socket.on('type_error', (error: any) => {
+      console.error('Type error:', error);
+    });
+
+    socket.on('click_error', (error: any) => {
+      console.error('Click error:', error);
+    });
+
     socket.on('error', ({ message }: { message: string }) => {
       console.error('Socket error:', message);
     });
