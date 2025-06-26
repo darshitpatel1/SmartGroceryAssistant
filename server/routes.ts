@@ -1,8 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { Server as SocketIOServer } from "socket.io";
-import { chromium, type Browser, type Page, type BrowserContext } from "playwright";
-import { WebSocketServer } from "ws";
+import { BrowserManager } from "./browser.js";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -111,23 +110,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const x = xNorm * 1280; // Use viewport width directly
         const y = yNorm * 720;   // Use viewport height directly
         
-        // Use Playwright's native click which handles all browser behaviors
-        await page.click(`xpath=//html`, { 
-          position: { x, y },
-          force: true // Allow clicking on any element
-        });
-        
+        // Use Playwright's native mouse click for precise coordinate clicking
+        await page.mouse.click(x, y);
         console.log(`Native click at: ${x}, ${y}`);
         
       } catch (error) {
         console.error("Click error:", error);
-        // Fallback to mouse click if coordinate click fails
-        try {
-          await page.mouse.click(x, y);
-          console.log(`Fallback mouse click at: ${x}, ${y}`);
-        } catch (fallbackError) {
-          console.error("Fallback click also failed:", fallbackError);
-        }
       }
     });
 
@@ -150,7 +138,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!page) return;
       
       try {
-        await page.mouse.wheel(0, deltaY);
+        await page.mouse.wheel({ deltaX: 0, deltaY });
         console.log("Scrolled:", deltaY);
       } catch (error) {
         console.error("Scroll error:", error);

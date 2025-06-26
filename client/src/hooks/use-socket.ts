@@ -8,6 +8,7 @@ interface UseSocketReturn {
   currentUrl: string;
   canGoBack: boolean;
   canGoForward: boolean;
+  isLoading: boolean;
   browse: (url: string) => void;
   click: (xNorm: number, yNorm: number) => void;
   doubleClick: (xNorm: number, yNorm: number) => void;
@@ -25,6 +26,7 @@ export function useSocket(): UseSocketReturn {
   const [currentUrl, setCurrentUrl] = useState('');
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
@@ -88,8 +90,13 @@ export function useSocket(): UseSocketReturn {
       console.error('Click error:', error);
     });
 
+    socket.on('loading', ({ status }: { status: string }) => {
+      setIsLoading(status === 'loading' || status === 'starting');
+    });
+
     socket.on('error', ({ message }: { message: string }) => {
       console.error('Socket error:', message);
+      setIsLoading(false);
     });
 
     return () => {
@@ -158,6 +165,7 @@ export function useSocket(): UseSocketReturn {
     currentUrl,
     canGoBack,
     canGoForward,
+    isLoading,
     browse,
     click,
     doubleClick,
