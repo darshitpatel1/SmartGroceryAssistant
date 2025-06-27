@@ -6,9 +6,9 @@ Save more, waste less, and connect with your neighbors through AI-powered group 
 
 ---
 
-## 🚀 What is ShopTogether?
+## 🚀 What is ShopWise?
 
-**ShopTogether** is an AI-first social shopping platform that empowers communities to:
+**ShopWise** is an AI-first social shopping platform that empowers communities to:
 - Discover the best grocery deals in real time
 - Form local shopping groups for bulk savings
 - Earn collective rewards and support local businesses
